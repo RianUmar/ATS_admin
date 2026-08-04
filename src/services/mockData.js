@@ -132,11 +132,31 @@ let DUMMY_STUDENTS = [
     latitude: -0.9482,
     longitude: 122.7885,
     tindakanLanjut: {
-      keterangan: 'Telah disalurkan bantuan seragam, tas, alat tulis, dan pembebasan biaya administrasi.',
+      keterangan: 'sudah lanjut sekolah',
       alasan: 'Anak menyatakan berminat kuat untuk bersekolah kembali jika seragam dan buku disediakan.',
       dokumenName: 'surat_rekomendasi_kembali_sekolah_rian.pdf',
       fotoUrl: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=600&auto=format&fit=crop&q=60'
     }
+  }
+];
+
+// Arsip Riwayat Import Data ATS (Periode menggunakan ID sekuensial angka)
+let DUMMY_IMPORTS = [
+  {
+    id: 1,
+    periode: 1,
+    tanggalImport: '2026-06-15T09:30:00+08:00',
+    namaFile: 'ats_provinsi_sulteng_semester_1.xlsx',
+    importedCount: 6,
+    skippedCount: 1
+  },
+  {
+    id: 2,
+    periode: 2,
+    tanggalImport: '2026-07-20T14:15:00+08:00',
+    namaFile: 'ats_sigi_gumbasa_val.csv',
+    importedCount: 1,
+    skippedCount: 0
   }
 ];
 
@@ -146,12 +166,16 @@ export const getStudents = () => {
 };
 
 export const getStudentById = (id) => {
-  const student = DUMMY_STUDENTS.find(s => s.id === Number(id));
+  console.log("[mockDb] getStudentById searching for ID:", id, "Type:", typeof id);
+  console.log("[mockDb] Current database student IDs:", DUMMY_STUDENTS.map(s => s.id));
+  if (id === null || id === undefined) return null;
+  const student = DUMMY_STUDENTS.find(s => String(s.id) === String(id));
+  console.log("[mockDb] Found student result:", student);
   return student ? { ...student } : null;
 };
 
 export const updateStudentTindakanLanjut = (id, tindakan) => {
-  const index = DUMMY_STUDENTS.findIndex(s => s.id === Number(id));
+  const index = DUMMY_STUDENTS.findIndex(s => String(s.id) === String(id));
   if (index !== -1) {
     DUMMY_STUDENTS[index] = {
       ...DUMMY_STUDENTS[index],
@@ -162,4 +186,115 @@ export const updateStudentTindakanLanjut = (id, tindakan) => {
     return { ...DUMMY_STUDENTS[index] };
   }
   return null;
+};
+
+// Ambil Riwayat Import
+export const getImportHistory = () => {
+  return [...DUMMY_IMPORTS].reverse(); // Urutan terbaru di atas
+};
+
+// Helper untuk mendapatkan nilai dari objek berdasarkan kumpulan nama kolom alternatif (case-insensitive & space-insensitive)
+const getValueIgnoreCase = (obj, possibleKeys) => {
+  if (!obj) return undefined;
+  const keys = Object.keys(obj);
+  const foundKey = keys.find(k => {
+    const cleanK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+    return possibleKeys.some(pk => pk.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanK);
+  });
+  return foundKey ? obj[foundKey] : undefined;
+};
+
+// Tambah Data dan Simpan ke Riwayat (Periode dihitung secara otomatis sebagai increment ID)
+export const importStudents = (studentsList, fileDetails) => {
+  let importedCount = 0;
+  let skippedCount = 0;
+
+  studentsList.forEach(studentInput => {
+    // Normalisasi field keys dari excel/csv ke skema internal
+    const normName = String(getValueIgnoreCase(studentInput, ['nama', 'namalengkap', 'name']) || '').trim();
+    const normNik = String(getValueIgnoreCase(studentInput, ['nik', 'nomorinduk', 'nomorindukkependudukan']) || '').trim();
+    const normNisn = String(getValueIgnoreCase(studentInput, ['nisn', 'nomorinduksiswanasional']) || '').trim();
+    const normJkRaw = String(getValueIgnoreCase(studentInput, ['jk', 'jeniskelamin', 'sex']) || 'Laki-laki').trim();
+    const normTanggalLahir = String(getValueIgnoreCase(studentInput, ['tanggallahir', 'tgllahir', 'birthdate']) || '').trim();
+    const normIdSekolah = String(getValueIgnoreCase(studentInput, ['idsekolah', 'sekolah', 'sekolahasal']) || '').trim();
+    const normKelas = String(getValueIgnoreCase(studentInput, ['kelas', 'grade']) || '').trim();
+    const normKeterangan = String(getValueIgnoreCase(studentInput, ['keterangan', 'penyebab', 'alasan', 'keteranganpenyebab']) || '').trim();
+    const normStatusRaw = String(getValueIgnoreCase(studentInput, ['status', 'keaktifan']) || 'DO').trim();
+    const normKabupaten = String(getValueIgnoreCase(studentInput, ['kabupaten', 'kota', 'kabupatenkota', 'kab']) || '').trim();
+    const normKecamatan = String(getValueIgnoreCase(studentInput, ['kecamatan', 'kec']) || '').trim();
+    const normDesa = String(getValueIgnoreCase(studentInput, ['desa', 'kelurahan', 'desakelurahan']) || '').trim();
+    const normAlamatJalan = String(getValueIgnoreCase(studentInput, ['alamatjalan', 'alamat', 'alamatrumah']) || '').trim();
+    
+    const rawLat = getValueIgnoreCase(studentInput, ['lintang', 'latitude', 'lat']);
+    const rawLng = getValueIgnoreCase(studentInput, ['bujur', 'longitude', 'lng']);
+    const normLatitude = parseFloat(rawLat !== undefined && rawLat !== null ? rawLat : 0) || 0;
+    const normLongitude = parseFloat(rawLng !== undefined && rawLng !== null ? rawLng : 0) || 0;
+
+    if (!normNik) {
+      skippedCount++;
+      return;
+    }
+
+    // Hindari duplikasi NIK
+    const isExist = DUMMY_STUDENTS.some(s => String(s.nik).trim() === normNik);
+    if (isExist) {
+      skippedCount++;
+      return;
+    }
+
+    // Normalisasi Jenis Kelamin (JK)
+    let finalJk = 'Laki-laki';
+    if (normJkRaw.toLowerCase() === 'p' || normJkRaw.toLowerCase() === 'perempuan') {
+      finalJk = 'Perempuan';
+    }
+
+    // Normalisasi Status Keaktifan
+    let finalStatus = 'DO';
+    if (normStatusRaw.toLowerCase() === 'ltm' || normStatusRaw.toLowerCase() === 'lulus tidak melanjutkan' || normStatusRaw.toLowerCase() === 'lulus') {
+      finalStatus = 'LTM';
+    }
+
+    // Generate new sequential ID safely to prevent NaN
+    const newId = DUMMY_STUDENTS.length > 0 
+      ? Math.max(...DUMMY_STUDENTS.map(s => Number(s.id) || 0)) + 1 
+      : 1;
+
+    DUMMY_STUDENTS.push({
+      id: newId,
+      nama: normName,
+      nik: normNik,
+      nisn: normNisn,
+      jk: finalJk,
+      tanggalLahir: normTanggalLahir,
+      idSekolah: normIdSekolah,
+      kelas: normKelas,
+      keterangan: normKeterangan,
+      status: finalStatus,
+      kabupaten: normKabupaten,
+      kecamatan: normKecamatan,
+      desa: normDesa,
+      alamatJalan: normAlamatJalan,
+      latitude: normLatitude,
+      longitude: normLongitude,
+      tindakanLanjut: null
+    });
+    importedCount++;
+  });
+
+  // Simpan log ke arsip riwayat import jika ada data yang diproses
+  if (importedCount > 0 || skippedCount > 0) {
+    const newImportId = DUMMY_IMPORTS.length > 0 ? Math.max(...DUMMY_IMPORTS.map(i => Number(i.id) || 0)) + 1 : 1;
+    const nextPeriod = DUMMY_IMPORTS.length > 0 ? Math.max(...DUMMY_IMPORTS.map(i => Number(i.periode) || 0)) + 1 : 1;
+    
+    DUMMY_IMPORTS.push({
+      id: newImportId,
+      periode: nextPeriod, // Integer ID pengimporan berurutan (1, 2, 3...)
+      tanggalImport: new Date().toISOString(),
+      namaFile: fileDetails.namaFile || 'file_eksternal',
+      importedCount,
+      skippedCount
+    });
+  }
+
+  return { importedCount, skippedCount };
 };

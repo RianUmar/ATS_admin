@@ -34,7 +34,7 @@ function ChangeMapView({ center }) {
 
 // Custom Marker Icon: Ikon Pinpoint Rumah berwarna Biru dengan Animasi Pulsating
 const createCustomIcon = () => {
-  return new L.divIcon({
+  return L.divIcon({
     html: `
       <div class="relative flex items-center justify-center">
         <div class="absolute w-8 h-8 rounded-full bg-blue-500 opacity-30 animate-ping"></div>
@@ -76,8 +76,10 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
     setLoading(true);
     // Mensimulasikan delay API (400ms) untuk efek loading yang premium
     const timer = setTimeout(() => {
+      console.log("[StudentDetail] Fetching student detail for ID:", id, "Type:", typeof id);
       getStudentByIdAPI(id)
         .then(response => {
+          console.log("[StudentDetail] Response from API:", response);
           if (response.data) {
             setStudent(response.data);
             // Pre-fill form jika sudah ada tindakan lanjut sebelumnya
@@ -93,12 +95,13 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
               setFotoPreview('');
             }
           } else {
+            console.warn("[StudentDetail] Student data not found for ID:", id);
             setAlertMsg({ type: 'error', text: 'Data siswa tidak ditemukan!' });
           }
           setLoading(false);
         })
         .catch(err => {
-          console.error(err);
+          console.error("[StudentDetail] Error fetching student details:", err);
           setAlertMsg({ type: 'error', text: 'Gagal mengambil data dari server.' });
           setLoading(false);
         });

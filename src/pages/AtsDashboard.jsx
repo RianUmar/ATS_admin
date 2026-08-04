@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import AdminAtsTable from '../components/AdminAtsTable';
 import StudentDetail from '../components/StudentDetail';
-import { getStudentsAPI } from '../services/api';
+import ImportModal from '../components/ImportModal';
+import { getStudentsAPI, getImportHistoryAPI } from '../services/api';
 import { 
   Users, 
   GraduationCap, 
@@ -9,14 +10,18 @@ import {
   Layers, 
   ShieldCheck, 
   CheckSquare, 
-  Clock 
+  Clock,
+  Upload,
+  History
 } from 'lucide-react';
 
 export default function AtsDashboard() {
   const [selectedDetailId, setSelectedDetailId] = useState(null);
   const [students, setStudents] = useState([]);
+  const [importHistory, setImportHistory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('belum'); // 'belum' atau 'sudah'
+  const [activeTab, setActiveTab] = useState('belum'); // 'belum', 'sudah', atau 'riwayat'
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // Ambil data siswa dari mock API saat load dashboard
   const fetchStudents = () => {
@@ -31,8 +36,20 @@ export default function AtsDashboard() {
       });
   };
 
+  // Ambil data riwayat import
+  const fetchImportHistory = () => {
+    getImportHistoryAPI()
+      .then((response) => {
+        setImportHistory(response.data || []);
+      })
+      .catch((error) => {
+        console.error('Gagal mengambil riwayat import:', error);
+      });
+  };
+
   useEffect(() => {
     fetchStudents();
+    fetchImportHistory();
   }, []);
 
   const handleAdminDetailClick = (id) => {
@@ -41,6 +58,7 @@ export default function AtsDashboard() {
 
   const handleSaveSuccess = () => {
     fetchStudents(); // Refresh data setelah tindakan lanjut disimpan
+    fetchImportHistory(); // Refresh riwayat import
   };
 
   // Membagi data siswa secara dinamis berdasarkan status tindakan lanjut
@@ -177,41 +195,70 @@ export default function AtsDashboard() {
 
             </div>
 
-            {/* Pemisah Tabel Berdasarkan Tindakan Lanjut */}
+            {/* Pemisah Tabel Berdasarkan Status Tindakan & Fitur Import */}
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
-              {/* Tab Selector Switcher */}
-              <div className="flex border-b border-slate-200 mb-6 overflow-x-auto whitespace-nowrap scrollbar-none gap-2">
+              {/* Tab Selector & Import Button Row */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 mb-6 pb-2 gap-4">
+                {/* Tab Selector Switcher */}
+                <div className="flex overflow-x-auto whitespace-nowrap scrollbar-none gap-2">
+                  <button
+                    onClick={() => setActiveTab('belum')}
+                    className={`flex items-center gap-2.5 px-6 py-3.5 font-bold text-sm transition-all duration-250 border-b-2 cursor-pointer focus:outline-none ${
+                      activeTab === 'belum' 
+                        ? 'border-blue-700 text-blue-700' 
+                        : 'border-transparent text-slate-400 hover:text-slate-600'
+                    }`}
+                  >
+                    <Clock size={16} />
+                    Belum Ditindaklanjuti
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ml-1 transition-colors ${
+                      activeTab === 'belum' ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-slate-100 text-slate-500'
+                    }`}>
+                      {studentsBelumTindakLanjut.length}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('sudah')}
+                    className={`flex items-center gap-2.5 px-6 py-3.5 font-bold text-sm transition-all duration-250 border-b-2 cursor-pointer focus:outline-none ${
+                      activeTab === 'sudah' 
+                        ? 'border-emerald-600 text-emerald-600' 
+                        : 'border-transparent text-slate-400 hover:text-slate-600'
+                    }`}
+                  >
+                    <CheckSquare size={16} />
+                    Sudah Ditindaklanjuti
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ml-1 transition-colors ${
+                      activeTab === 'sudah' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-slate-100 text-slate-500'
+                    }`}>
+                      {studentsSudahTindakLanjut.length}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('riwayat')}
+                    className={`flex items-center gap-2.5 px-6 py-3.5 font-bold text-sm transition-all duration-250 border-b-2 cursor-pointer focus:outline-none ${
+                      activeTab === 'riwayat' 
+                        ? 'border-indigo-600 text-indigo-600' 
+                        : 'border-transparent text-slate-400 hover:text-slate-600'
+                    }`}
+                  >
+                    <History size={16} />
+                    Riwayat Import
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ml-1 transition-colors ${
+                      activeTab === 'riwayat' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-slate-100 text-slate-500'
+                    }`}>
+                      {importHistory.length}
+                    </span>
+                  </button>
+                </div>
+                
+                {/* Tombol Import Data */}
                 <button
-                  onClick={() => setActiveTab('belum')}
-                  className={`flex items-center gap-2.5 px-6 py-3.5 font-bold text-sm transition-all duration-250 border-b-2 cursor-pointer focus:outline-none ${
-                    activeTab === 'belum' 
-                      ? 'border-blue-700 text-blue-700' 
-                      : 'border-transparent text-slate-400 hover:text-slate-600'
-                  }`}
+                  type="button"
+                  onClick={() => setIsImportModalOpen(true)}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-700 hover:bg-blue-800 text-white text-sm font-bold rounded-xl shadow-md shadow-blue-700/10 transition-colors duration-200 cursor-pointer self-start sm:self-auto"
                 >
-                  <Clock size={16} />
-                  Belum Ditindaklanjuti
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ml-1 transition-colors ${
-                    activeTab === 'belum' ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-slate-100 text-slate-500'
-                  }`}>
-                    {studentsBelumTindakLanjut.length}
-                  </span>
-                </button>
-                <button
-                  onClick={() => setActiveTab('sudah')}
-                  className={`flex items-center gap-2.5 px-6 py-3.5 font-bold text-sm transition-all duration-250 border-b-2 cursor-pointer focus:outline-none ${
-                    activeTab === 'sudah' 
-                      ? 'border-emerald-600 text-emerald-600' 
-                      : 'border-transparent text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  <CheckSquare size={16} />
-                  Sudah Ditindaklanjuti
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ml-1 transition-colors ${
-                    activeTab === 'sudah' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-slate-100 text-slate-500'
-                  }`}>
-                    {studentsSudahTindakLanjut.length}
-                  </span>
+                  <Upload size={16} />
+                  Import Data ATS (Excel / CSV)
                 </button>
               </div>
 
@@ -227,17 +274,90 @@ export default function AtsDashboard() {
                     data={studentsBelumTindakLanjut} 
                     onDetailClick={handleAdminDetailClick} 
                   />
-                ) : (
+                ) : activeTab === 'sudah' ? (
                   <AdminAtsTable 
                     data={studentsSudahTindakLanjut} 
                     onDetailClick={handleAdminDetailClick} 
                   />
+                ) : (
+                  /* TABEL RIWAYAT IMPORT */
+                  <div className="w-full overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-150 bg-slate-50/50">
+                          <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-400">Tanggal & Waktu</th>
+                          <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-400">Periode Data</th>
+                          <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-400">Nama Berkas</th>
+                          <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-400 text-center">Data Sukses</th>
+                          <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-400 text-center">Data Duplikat/Skip</th>
+                          <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-400 text-center">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {importHistory.length > 0 ? (
+                          importHistory.map((item, index) => (
+                            <tr 
+                              key={item.id} 
+                              className={`hover:bg-slate-100/30 transition-colors duration-150 ${
+                                index % 2 === 0 ? 'bg-slate-50/50' : 'bg-white'
+                              }`}
+                            >
+                              <td className="px-6 py-4 text-sm text-slate-600 font-semibold">
+                                {new Date(item.tanggalImport).toLocaleString('id-ID', {
+                                  day: '2-digit',
+                                  month: 'long',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  timeZoneName: 'short'
+                                })}
+                              </td>
+                              <td className="px-6 py-4 text-sm font-bold text-slate-800">{item.periode}</td>
+                              <td className="px-6 py-4 text-sm font-mono text-slate-500 max-w-[220px] truncate" title={item.namaFile}>
+                                {item.namaFile}
+                              </td>
+                              <td className="px-6 py-4 text-sm text-center">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                                  +{item.importedCount} Jiwa
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-sm text-center">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+                                  item.skippedCount > 0 ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-slate-50 text-slate-400 border-slate-100'
+                                }`}>
+                                  {item.skippedCount} Dilewati
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-sm text-center">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-100">
+                                  Selesai
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="6" className="px-6 py-12 text-center text-slate-400 text-sm">
+                              Belum ada arsip riwayat pengimporan data.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
             </div>
           </div>
         )}
       </main>
+
+      {/* Import Modal */}
+      <ImportModal 
+        isOpen={isImportModalOpen} 
+        onClose={() => setIsImportModalOpen(false)}
+        onImportSuccess={handleSaveSuccess}
+      />
 
       {/* Footer */}
       <footer className="bg-white border-t border-slate-200 py-8 mt-16 text-center text-xs text-slate-400">

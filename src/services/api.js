@@ -58,3 +58,13 @@ export const updateStudentTindakanLanjutAPI = (id, tindakan) => {
   // Simulation of api.post(`/admin/siswa/${id}/tindakan-lanjut`, tindakan)
   return Promise.resolve({ data: mockDb.updateStudentTindakanLanjut(id, tindakan) });
 };
+
+export const importStudentsAPI = (studentsList, fileDetails) => {
+  // Simulation of api.post('/admin/siswa/import', { students: studentsList, details: fileDetails })
+  return Promise.resolve({ data: mockDb.importStudents(studentsList, fileDetails) });
+};
+
+export const getImportHistoryAPI = () => {
+  // Simulation of api.get('/admin/siswa/import-history')
+  return Promise.resolve({ data: mockDb.getImportHistory() });
+};
