@@ -11,7 +11,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { importStudentsAPI } from '../services/api';
+import { importAtsExcelAPI, importStudentsAPI } from '../services/api';
 
 export default function ImportModal({ isOpen, onClose, onImportSuccess }) {
   const [file, setFile] = useState(null);
@@ -31,54 +31,69 @@ export default function ImportModal({ isOpen, onClose, onImportSuccess }) {
       'nama',
       'nik',
       'nisn',
-      'jk',
+      'no_kk',
+      'jenis_kelamin',
+      'tempat_lahir',
       'tanggal_lahir',
-      'id_sekolah',
-      'kelas',
-      'keterangan',
-      'status',
+      'nama_ibu_kandung',
+      'provinsi',
       'kabupaten',
       'kecamatan',
-      'desa',
+      'desa_kelurahan',
       'alamat_jalan',
+      'rt',
+      'rw',
       'lintang',
-      'bujur'
+      'bujur',
+      'status',
+      'tingkat_pendidikan',
+      'sekolah_id'
     ].join(',');
 
     const sampleRow1 = [
-      'Budi Santoso',
-      '7207052308990008',
-      '0076214589',
+      'Ahmad Nur Fauzi',
+      '7207052308990001',
+      '0075489621',
+      '7207052308990000',
       'Laki-laki',
-      '10 Mei 2008',
-      'SMPN 1 Sigi',
-      '8',
-      'Putus sekolah karena kendala ekonomi keluarga',
-      'DO',
+      'Palu',
+      '2007-08-23',
+      'Siti Aminah',
+      'Sulawesi Tengah',
       'Kab. Sigi',
       'Gumbasa',
       'Pakuli',
-      'Jln. Poros Palu-Kulawi KM 10, RT 01/RW 01',
-      '-1.2583',
-      '119.9234'
+      'Jln. Poros Palu-Kulawi KM 35',
+      '02',
+      '01',
+      '-1.2576',
+      '119.9234',
+      'DO',
+      'Kelas 8',
+      'SMPN 2 Gumbasa'
     ].join(',');
 
     const sampleRow2 = [
-      'Siti Aisyah',
-      '7203114509980009',
-      '0081245789',
+      'Siti Rahmawati',
+      '7203114509980002',
+      '0086214795',
+      '7203114509980000',
       'Perempuan',
-      '12 November 2007',
-      'SDN 2 Banawa',
-      '6',
-      'Lulus SD namun tidak melanjutkan karena tidak memiliki biaya seragam',
-      'LTM',
+      'Donggala',
+      '2008-09-15',
+      'Nurhayati',
+      'Sulawesi Tengah',
       'Kab. Donggala',
       'Banawa',
       'Ganti',
-      'Jln. Trans Sulawesi RT 02/RW 01',
+      'Jln. Trans Sulawesi',
+      '01',
+      '01',
       '-0.6854',
-      '119.7428'
+      '119.7428',
+      'LTM',
+      'Kelas 6',
+      'SDN 1 Banawa'
     ].join(',');
 
     const csvContent = "data:text/csv;charset=utf-8," + headers + "\n" + sampleRow1 + "\n" + sampleRow2;
@@ -118,7 +133,7 @@ export default function ImportModal({ isOpen, onClose, onImportSuccess }) {
     }
   };
 
-  // Parsing File dengan SheetJS (Excel / CSV)
+  // Parsing File dengan SheetJS untuk Pratinjau
   const processFile = (selectedFile) => {
     const fileExtension = selectedFile.name.split('.').pop().toLowerCase();
     if (!['xlsx', 'xls', 'csv'].includes(fileExtension)) {
@@ -153,10 +168,10 @@ export default function ImportModal({ isOpen, onClose, onImportSuccess }) {
 
         // Cek header minimal (nik & nama wajib ada)
         const keys = Object.keys(rawJson[0]).map(k => k.toLowerCase().trim());
-        const hasNik = keys.includes('nik');
-        const hasNama = keys.includes('nama') || keys.includes('nama lengkap') || keys.includes('nama_lengkap');
+        const hasNik = keys.some(k => k.includes('nik'));
+        const hasNama = keys.some(k => k.includes('nama') || k.includes('name'));
 
-        if (!hasNik || !hasNama) {
+        if (!hasNik && !hasNama) {
           setErrorMsg('Format kolom salah. Pastikan file memiliki baris header dengan nama kolom "nik" dan "nama".');
           setParsedData([]);
           setLoading(false);
@@ -181,39 +196,58 @@ export default function ImportModal({ isOpen, onClose, onImportSuccess }) {
     reader.readAsArrayBuffer(selectedFile);
   };
 
-  // Simpan Data Hasil Import ke Sistem
-  const handleImportSave = () => {
-    if (parsedData.length === 0) return;
+  // Simpan Data Hasil Import ke Backend (/api/ats/import)
+  const handleImportSave = async () => {
+    if (!file) return;
 
     setLoading(true);
-    
-    const fileDetails = {
-      namaFile: file.name
-    };
+    setErrorMsg(null);
 
-    importStudentsAPI(parsedData, fileDetails)
-      .then(res => {
+    try {
+      // 1. Coba upload langsung ke backend endpoint Laravel /api/ats/import
+      const res = await importAtsExcelAPI(file);
+      setLoading(false);
+      setSuccessReport({
+        importedCount: parsedData.length,
+        skippedCount: 0,
+        message: res.message || 'Data Excel Anak Tidak Sekolah berhasil diimpor ke database backend.'
+      });
+      
+      setFile(null);
+      setParsedData([]);
+
+      if (onImportSuccess) {
+        onImportSuccess();
+      }
+    } catch (err) {
+      console.warn('[ImportModal] Endpoint backend gagal atau offline, beralih ke local storage mock:', err);
+      
+      // 2. Fallback jika backend offline
+      try {
+        const fileDetails = { namaFile: file.name };
+        const localRes = await importStudentsAPI(parsedData, fileDetails);
         setLoading(false);
-        const { importedCount, skippedCount } = res.data;
-        setSuccessReport({ importedCount, skippedCount });
+        const { importedCount, skippedCount } = localRes.data;
+        setSuccessReport({
+          importedCount,
+          skippedCount,
+          message: 'Data berhasil diimpor ke state lokal (offline mode).'
+        });
         
-        // Reset state upload
         setFile(null);
         setParsedData([]);
 
-        // Panggil callback sukses agar dashboard ter-update
         if (onImportSuccess) {
           onImportSuccess();
         }
-      })
-      .catch(err => {
-        console.error(err);
+      } catch (mockErr) {
+        console.error(mockErr);
         setErrorMsg('Terjadi kesalahan saat memproses penyimpanan data ke sistem.');
         setLoading(false);
-      });
+      }
+    }
   };
 
-  // Tombol batal / bersihkan upload saat ini
   const handleReset = () => {
     setFile(null);
     setParsedData([]);
@@ -234,8 +268,8 @@ export default function ImportModal({ isOpen, onClose, onImportSuccess }) {
               <FileSpreadsheet size={20} />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-800 font-display">Import Data ATS</h3>
-              <p className="text-xs text-slate-400 mt-0.5">Unggah berkas excel / csv berkala untuk pembaruan data daerah</p>
+              <h3 className="text-lg font-bold text-slate-800 font-display">Import Data ATS (Excel / CSV)</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Unggah berkas spreadsheet data Dapodik ATS Provinsi Sulawesi Tengah</p>
             </div>
           </div>
           <button 
@@ -250,18 +284,18 @@ export default function ImportModal({ isOpen, onClose, onImportSuccess }) {
         <div className="p-6 sm:p-8 overflow-y-auto space-y-6 flex-1">
           
           {/* Petunjuk format dan tombol unduh template */}
-          <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-2xl flex items-start gap-3">
+          <div className="p-4 bg-blue-50/60 border border-blue-100 rounded-2xl flex items-start gap-3">
             <Info className="text-blue-600 w-5 h-5 flex-shrink-0 mt-0.5" />
             <div className="text-xs text-slate-600 space-y-2 leading-relaxed">
-              <p className="font-bold text-blue-800">Petunjuk Format Berkas:</p>
-              <p>Pastikan file spreadsheet memiliki baris paling atas berisi header kolom dalam bahasa Indonesia/Inggris (misal: <strong>nama, nik, nisn, jk, tanggal_lahir, kabupaten, kecamatan, desa, alamat_jalan, lintang, bujur</strong>).</p>
+              <p className="font-bold text-blue-900">Petunjuk Format Berkas ATS:</p>
+              <p>Mendukung format data Excel (.xlsx / .xls / .csv) hingga 20 MB. Backend akan memetakan otomatis kolom NIK, NISN, Nama, Alamat, dan Titik Koordinat.</p>
               <button 
                 type="button"
                 onClick={handleDownloadTemplate}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-lg shadow-sm transition-colors cursor-pointer mt-1"
               >
                 <Download size={12} />
-                Unduh Templat CSV (.csv)
+                Unduh Templat CSV Standar
               </button>
             </div>
           </div>
@@ -272,17 +306,18 @@ export default function ImportModal({ isOpen, onClose, onImportSuccess }) {
               <CheckCircle2 className="text-emerald-600 w-6 h-6 flex-shrink-0" />
               <div>
                 <h4 className="font-bold text-emerald-950 font-display">Proses Import Berhasil Selesai!</h4>
-                <div className="mt-2 space-y-1">
-                  <p>• <strong className="font-bold text-emerald-900">{successReport.importedCount} data anak baru</strong> berhasil ditambahkan ke dashboard.</p>
+                <p className="mt-1 text-xs text-emerald-900">{successReport.message}</p>
+                <div className="mt-2 space-y-0.5 text-xs">
+                  <p>• <strong className="font-bold text-emerald-900">{successReport.importedCount} data siswa</strong> berhasil diproses.</p>
                   {successReport.skippedCount > 0 && (
-                    <p className="text-slate-500">• {successReport.skippedCount} data di-skip / dilewati karena duplikasi NIK atau data tidak memiliki NIK.</p>
+                    <p className="text-slate-500">• {successReport.skippedCount} data di-skip / dilewati karena duplikasi NIK.</p>
                   )}
                 </div>
                 <button
                   onClick={handleReset}
                   className="mt-3 text-xs font-bold text-blue-700 hover:text-blue-800 cursor-pointer underline block"
                 >
-                  Import file lainnya
+                  Import berkas lainnya
                 </button>
               </div>
             </div>
@@ -299,34 +334,33 @@ export default function ImportModal({ isOpen, onClose, onImportSuccess }) {
             </div>
           )}
 
-          {/* Skenario 1: Upload Dropzone (jika file belum di-select) */}
+          {/* Upload Dropzone */}
           {!file && !successReport && (
             <div 
               onDragEnter={handleDrag}
               onDragOver={handleDrag}
               onDragLeave={handleDrag}
               onDrop={handleDrop}
-              className={`rounded-3xl border-2 border-dashed transition-all duration-200 min-h-[220px] flex flex-col items-center justify-center text-center p-8 cursor-pointer group ${
+              className={`rounded-3xl border-2 border-dashed transition-all duration-200 min-h-[200px] flex flex-col items-center justify-center text-center p-8 cursor-pointer group ${
                 dragActive 
                   ? 'border-blue-700 bg-blue-50/20' 
                   : 'border-slate-200 bg-slate-50 hover:bg-slate-100/50 hover:border-blue-600/40'
               }`}
               onClick={() => fileInputRef.current?.click()}
             >
-              <div className="w-14 h-14 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-200 shadow-sm">
+              <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-700 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-200 shadow-sm">
                 {loading ? <RefreshCw size={24} className="animate-spin" /> : <Upload size={24} />}
               </div>
               
               {loading ? (
                 <div>
-                  <span className="text-sm font-bold text-slate-700">Membaca dan mengurai file...</span>
-                  <p className="text-xs text-slate-400 mt-1">Menggunakan engine SheetJS</p>
+                  <span className="text-sm font-bold text-slate-700">Membaca berkas...</span>
                 </div>
               ) : (
                 <div>
-                  <span className="text-sm font-bold text-slate-700 block">Tarik & lepas file spreadsheet ke sini</span>
-                  <span className="text-xs text-slate-400 mt-1 block">atau <strong className="text-blue-700 font-bold underline">klik untuk cari file</strong> di komputer Anda</span>
-                  <span className="text-[10px] text-slate-400 mt-2 block">Mendukung berkas format .xlsx, .xls, .csv (Maks. 10MB)</span>
+                  <span className="text-sm font-bold text-slate-700 block">Tarik & lepas file Excel / CSV ke sini</span>
+                  <span className="text-xs text-slate-400 mt-1 block">atau <strong className="text-blue-700 font-bold underline">klik untuk memilih berkas</strong></span>
+                  <span className="text-[10px] text-slate-400 mt-2 block">Mendukung file .xlsx, .xls, .csv (Maksimal 20 MB)</span>
                 </div>
               )}
 
@@ -340,67 +374,65 @@ export default function ImportModal({ isOpen, onClose, onImportSuccess }) {
             </div>
           )}
 
-          {/* Skenario 2: Pratinjau Grid Data */}
+          {/* Pratinjau Grid Data */}
           {file && parsedData.length > 0 && (
-            <div className="space-y-4">
-              {/* Header Pratinjau */}
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-sm font-bold text-slate-700 font-display">Pratinjau Data Impor</h4>
-                  <p className="text-xs text-slate-400 mt-0.5">Menemukan total <strong className="font-bold text-slate-600">{parsedData.length} baris</strong> data di dalam file <strong className="font-bold text-slate-600">"{file.name}"</strong></p>
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Pratinjau Data ({parsedData.length} Baris)</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">Berkas: <strong className="font-bold text-slate-600">{file.name}</strong></p>
                 </div>
                 <button 
                   type="button" 
                   onClick={handleReset} 
-                  className="text-xs font-bold text-red-600 hover:text-red-700 cursor-pointer flex items-center gap-1.5"
+                  className="text-xs font-bold text-red-600 hover:text-red-700 cursor-pointer flex items-center gap-1"
                 >
-                  <X size={14} /> Batalkan
+                  <X size={13} /> Batalkan
                 </button>
               </div>
 
-              {/* Grid Scrollable Tabel Pratinjau */}
               <div className="border border-slate-100 rounded-2xl overflow-hidden shadow-sm max-h-[220px] overflow-y-auto">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-100 sticky top-0">
-                      <th className="px-4 py-3 font-semibold text-slate-500">Nama</th>
-                      <th className="px-4 py-3 font-semibold text-slate-500">NIK</th>
-                      <th className="px-4 py-3 font-semibold text-slate-500">NISN</th>
-                      <th className="px-4 py-3 font-semibold text-slate-500">Kabupaten</th>
-                      <th className="px-4 py-3 font-semibold text-slate-500 text-center">Lintang (Lat)</th>
-                      <th className="px-4 py-3 font-semibold text-slate-500 text-center">Bujur (Lng)</th>
+                      <th className="px-4 py-2.5 font-bold text-slate-500">Nama</th>
+                      <th className="px-4 py-2.5 font-bold text-slate-500">NIK</th>
+                      <th className="px-4 py-2.5 font-bold text-slate-500">NISN</th>
+                      <th className="px-4 py-2.5 font-bold text-slate-500">Kabupaten</th>
+                      <th className="px-4 py-2.5 font-bold text-slate-500 text-center">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50 bg-white">
                     {parsedData.slice(0, 5).map((row, idx) => {
-                      const lat = row.lintang || row.latitude || row.Latitude || '-';
-                      const lng = row.bujur || row.longitude || row.Longitude || '-';
+                      const nama = row.nama || row.Nama || row['Nama Lengkap'] || '-';
+                      const nik = row.nik || row.NIK || '-';
+                      const nisn = row.nisn || row.NISN || '-';
+                      const kab = row.kabupaten || row.Kabupaten || '-';
+                      const status = row.status || row.Status || 'DO';
                       return (
                         <tr key={idx} className="hover:bg-slate-50/50">
-                          <td className="px-4 py-2.5 font-semibold text-slate-700">{row.nama || row.Nama || row['Nama Lengkap'] || '-'}</td>
-                          <td className="px-4 py-2.5 font-mono text-slate-600">{row.nik || row.NIK || '-'}</td>
-                          <td className="px-4 py-2.5 font-mono text-slate-600">{row.nisn || row.NISN || '-'}</td>
-                          <td className="px-4 py-2.5 text-slate-600">{row.kabupaten || row.Kabupaten || '-'}</td>
-                          <td className="px-4 py-2.5 font-mono text-center text-slate-500">{lat}</td>
-                          <td className="px-4 py-2.5 font-mono text-center text-slate-500">{lng}</td>
+                          <td className="px-4 py-2 font-bold text-slate-700">{nama}</td>
+                          <td className="px-4 py-2 font-mono text-slate-600">{nik}</td>
+                          <td className="px-4 py-2 font-mono text-slate-600">{nisn}</td>
+                          <td className="px-4 py-2 text-slate-600">{kab}</td>
+                          <td className="px-4 py-2 font-bold text-center text-slate-700">{status}</td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
               </div>
-              <p className="text-[10px] text-slate-400 text-right italic">*Menampilkan maksimal 5 baris pertama untuk peninjauan.</p>
             </div>
           )}
 
         </div>
 
         {/* Footer Modal */}
-        <div className="p-6 border-t border-slate-100 flex items-center justify-end gap-3 bg-slate-50">
+        <div className="p-6 border-t border-slate-100 flex items-center justify-end gap-3 bg-slate-50/60">
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-sm font-semibold rounded-xl transition-colors cursor-pointer"
+            className="px-5 py-2.5 border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer"
           >
             Tutup
           </button>
@@ -410,19 +442,19 @@ export default function ImportModal({ isOpen, onClose, onImportSuccess }) {
               type="button"
               disabled={loading}
               onClick={handleImportSave}
-              className={`px-5 py-2.5 bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold rounded-xl shadow-md shadow-blue-700/10 transition-colors flex items-center gap-1.5 cursor-pointer ${
+              className={`px-5 py-2.5 bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold rounded-xl shadow-md shadow-blue-700/10 transition-colors flex items-center gap-1.5 cursor-pointer ${
                 loading ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             >
               {loading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Menyimpan...
+                  Mengimpor ke Backend...
                 </>
               ) : (
                 <>
-                  <Check size={16} />
-                  Simpan & Import ({parsedData.length} Baris)
+                  <Check size={15} />
+                  Unggah & Impor ({parsedData.length} Data)
                 </>
               )}
             </button>

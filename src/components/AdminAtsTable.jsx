@@ -1,40 +1,72 @@
-import React, { useState, useMemo } from 'react';
-import { Search, Eye } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Search, Eye, CheckCircle2, Clock, User, FileText, ChevronLeft, ChevronRight, X, Loader2 } from 'lucide-react';
 
-// Data Dummy Lengkap dengan NIK utuh (Akses Admin)
-const DUMMY_ADMIN_ATS = [
-  { id: 1, nama: 'Ahmad Nur Fauzi', jk: 'Laki-laki', nik: '7207052308990001', kabupaten: 'Kab. Sigi', kecamatan: 'Gumbasa', status: 'DO' },
-  { id: 2, nama: 'Siti Rahmawati', jk: 'Perempuan', nik: '7203114509980002', kabupaten: 'Kab. Donggala', kecamatan: 'Banawa', status: 'LTM' },
-  { id: 3, nama: 'Putra Pratama', jk: 'Laki-laki', nik: '7271011207990003', kabupaten: 'Kota Palu', kecamatan: 'Palu Timur', status: 'DO' },
-  { id: 4, nama: 'Dewi Lestari', jk: 'Perempuan', nik: '7208045506970001', kabupaten: 'Kab. Parigi Moutong', kecamatan: 'Parigi', status: 'LTM' },
-  { id: 5, nama: 'Mohammad Faisal', jk: 'Laki-laki', nik: '7202102804960002', kabupaten: 'Kab. Poso', kecamatan: 'Poso Kota', status: 'DO' },
-  { id: 6, nama: 'Indah Permatasari', jk: 'Perempuan', nik: '7206126201010003', kabupaten: 'Kab. Morowali', kecamatan: 'Bungku Tengah', status: 'LTM' },
-  { id: 7, nama: 'Rian Hidayat', jk: 'Laki-laki', nik: '7201081503000004', kabupaten: 'Kab. Banggai', kecamatan: 'Luwuk', status: 'DO' },
+const SULTENG_KABUPATEN = [
+  'Kota Palu',
+  'Kab. Banggai',
+  'Kab. Banggai Kepulauan',
+  'Kab. Banggai Laut',
+  'Kab. Buol',
+  'Kab. Donggala',
+  'Kab. Morowali',
+  'Kab. Morowali Utara',
+  'Kab. Parigi Moutong',
+  'Kab. Poso',
+  'Kab. Sigi',
+  'Kab. Tojo Una-Una',
+  'Kab. Tolitoli'
 ];
 
-export default function AdminAtsTable({ data = DUMMY_ADMIN_ATS, onDetailClick }) {
+export default function AdminAtsTable({ 
+  data = [], 
+  loading = false,
+  onDetailClick,
+  pagination = null,
+  onPageChange = null,
+  onFilterChange = null
+}) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedKabupaten, setSelectedKabupaten] = useState('');
   const [selectedKecamatan, setSelectedKecamatan] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const isFirstMount = useRef(true);
 
   const handleDetail = (item) => {
-    console.log(`[ADMIN ATS] Mengakses Detail Anak dengan ID: ${item.id}`, item);
     if (onDetailClick) {
       onDetailClick(item.id, item);
-    } else {
-      alert(`Membuka detail untuk: ${item.nama} (ID: ${item.id})`);
     }
   };
 
-  const listKabupaten = useMemo(() => {
-    return [...new Set(data.map(item => item.kabupaten))];
-  }, [data]);
+  // Debounced filter trigger agar tidak unmount input saat mengetik
+  useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      return;
+    }
 
+    const timer = setTimeout(() => {
+      if (onFilterChange) {
+        onFilterChange({
+          search: searchTerm.trim(),
+          kabupaten: selectedKabupaten,
+          kecamatan: selectedKecamatan,
+          status: selectedStatus
+        });
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm, selectedKabupaten, selectedKecamatan, selectedStatus]);
+
+  // Ekstraksi daftar kecamatan unik berdasarkan data yang ada
   const listKecamatan = useMemo(() => {
     const filtered = selectedKabupaten 
       ? data.filter(item => item.kabupaten === selectedKabupaten)
       : data;
-    return [...new Set(filtered.map(item => item.kecamatan))];
+    const kecs = filtered
+      .map(item => item.kecamatan)
+      .filter(Boolean);
+    return [...new Set(kecs)];
   }, [data, selectedKabupaten]);
 
   const handleKabupatenChange = (e) => {
@@ -42,130 +74,257 @@ export default function AdminAtsTable({ data = DUMMY_ADMIN_ATS, onDetailClick })
     setSelectedKecamatan('');
   };
 
-  const filteredData = useMemo(() => {
-    return data.filter(item => {
-      const matchSearch = item.nama.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          item.nik.includes(searchTerm);
-      const matchKabupaten = selectedKabupaten ? item.kabupaten === selectedKabupaten : true;
-      const matchKecamatan = selectedKecamatan ? item.kecamatan === selectedKecamatan : true;
-      
-      return matchSearch && matchKabupaten && matchKecamatan;
-    });
-  }, [data, searchTerm, selectedKabupaten, selectedKecamatan]);
+  const handleKecamatanChange = (e) => {
+    setSelectedKecamatan(e.target.value);
+  };
+
+  const handleStatusChange = (e) => {
+    setSelectedStatus(e.target.value);
+  };
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+  };
+
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    if (onFilterChange) {
+      onFilterChange({
+        search: '',
+        kabupaten: selectedKabupaten,
+        kecamatan: selectedKecamatan,
+        status: selectedStatus
+      });
+    }
+  };
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    if (onFilterChange) {
+      onFilterChange({
+        search: searchTerm.trim(),
+        kabupaten: selectedKabupaten,
+        kecamatan: selectedKecamatan,
+        status: selectedStatus
+      });
+    }
+  };
+
+  // Helper formatting jenis kelamin
+  const getJkLabel = (jk) => {
+    if (!jk) return '-';
+    if (jk.toUpperCase() === 'L' || jk.toLowerCase().includes('laki')) return 'Laki-laki';
+    if (jk.toUpperCase() === 'P' || jk.toLowerCase().includes('perempuan')) return 'Perempuan';
+    return jk;
+  };
+
+  // Helper status tindak lanjut
+  const hasTindakLanjut = (item) => {
+    if (item.tindakanLanjut) return true;
+    if (item.tindak_lanjuts && Array.isArray(item.tindak_lanjuts) && item.tindak_lanjuts.length > 0) return true;
+    return false;
+  };
 
   return (
-    <div className="w-full bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+    <div className="w-full bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden relative">
       
       {/* Header Tabel & Filter */}
-      <div className="p-6 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+      <div className="p-6 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 bg-gradient-to-r from-slate-50/70 to-white">
         <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-slate-800 font-display">Data Anak Tidak Sekolah</h2>
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
-              Admin Panel
-            </span>
-          </div>
-          <p className="text-xs text-slate-500 mt-1">Provinsi Sulawesi Tengah (Akses Penuh - Full Access NIK)</p>
-        </div>
-        
-        {/* Elemen Filter Kanan */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          
-          {/* Input Pencarian (rounded-full) */}
-          <div className="relative flex items-center min-w-[240px]">
-            <input
-              type="text"
-              placeholder="Cari Nama / NIK..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-4 pr-12 py-2.5 bg-slate-50 hover:bg-slate-100/75 focus:bg-white text-sm text-slate-700 rounded-full border border-slate-200 focus:border-[#1C40AC] focus:ring-2 focus:ring-[#1C40AC]/10 outline-none transition-all duration-200"
-            />
-            <div className="absolute right-1 top-1 bottom-1 w-9 h-9 rounded-full bg-[#1C40AC] hover:bg-blue-800 flex items-center justify-center text-white cursor-pointer shadow-sm transition-colors duration-200">
-              <Search size={16} />
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center font-bold">
+              <FileText size={18} />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-slate-800 font-display">Tabel Data Anak Tidak Sekolah (ATS)</h2>
+              <p className="text-xs text-slate-500">Provinsi Sulawesi Tengah</p>
             </div>
           </div>
+        </div>
+        
+        {/* Kontrol Filter & Search */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-wrap">
+          
+          {/* Form Pencarian (Tetap Terfokus saat Mengetik) */}
+          <form onSubmit={handleSearchSubmit} className="relative flex items-center min-w-[240px]">
+            <input
+              type="text"
+              placeholder="Cari Nama / NIK / NISN..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+              className="w-full pl-4 pr-16 py-2 bg-slate-50 hover:bg-slate-100/75 focus:bg-white text-xs text-slate-700 rounded-full border border-slate-200 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all duration-200"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                className="absolute right-9 p-1 text-slate-400 hover:text-slate-600 rounded-full cursor-pointer"
+                title="Hapus pencarian"
+              >
+                <X size={13} />
+              </button>
+            )}
+            <button
+              type="submit"
+              className="absolute right-1 top-1 bottom-1 w-7 h-7 rounded-full bg-blue-700 hover:bg-blue-800 flex items-center justify-center text-white cursor-pointer shadow-sm transition-colors"
+              title="Cari Data"
+            >
+              {loading ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />}
+            </button>
+          </form>
 
-          {/* Dropdown Select Kecamatan */}
+          {/* Filter Status ATS */}
+          <select
+            value={selectedStatus}
+            onChange={handleStatusChange}
+            className="px-3.5 py-2 bg-white text-xs text-slate-600 rounded-full border border-slate-200 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all cursor-pointer"
+          >
+            <option value="">Semua Status ATS</option>
+            <option value="DO">Drop Out (DO)</option>
+            <option value="LTM">Lulus Tidak Melanjutkan (LTM)</option>
+          </select>
+
+          {/* Dropdown Kabupaten Seluruh Sulawesi Tengah */}
+          <select
+            value={selectedKabupaten}
+            onChange={handleKabupatenChange}
+            className="px-3.5 py-2 bg-white text-xs text-slate-600 rounded-full border border-slate-200 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all cursor-pointer"
+          >
+            <option value="">Semua Kab / Kota ({SULTENG_KABUPATEN.length})</option>
+            {SULTENG_KABUPATEN.map((kab, index) => (
+              <option key={index} value={kab}>{kab}</option>
+            ))}
+          </select>
+
+          {/* Dropdown Kecamatan */}
           <select
             value={selectedKecamatan}
-            onChange={(e) => setSelectedKecamatan(e.target.value)}
-            className="px-4 py-2.5 bg-white text-sm text-slate-600 rounded-full border border-slate-200 focus:border-[#1C40AC] focus:ring-2 focus:ring-[#1C40AC]/10 outline-none transition-all duration-200 cursor-pointer appearance-none pr-8 relative bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2364748B%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22/%3E%3C/svg%3E')] bg-[length:0.65rem_auto] bg-[right_1rem_center] bg-no-repeat"
+            onChange={handleKecamatanChange}
+            className="px-3.5 py-2 bg-white text-xs text-slate-600 rounded-full border border-slate-200 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all cursor-pointer"
           >
             <option value="">Semua Kecamatan</option>
             {listKecamatan.map((kec, index) => (
               <option key={index} value={kec}>{kec}</option>
             ))}
           </select>
-
-          {/* Dropdown Select Kabupaten */}
-          <select
-            value={selectedKabupaten}
-            onChange={handleKabupatenChange}
-            className="px-4 py-2.5 bg-white text-sm text-slate-600 rounded-full border border-slate-200 focus:border-[#1C40AC] focus:ring-2 focus:ring-[#1C40AC]/10 outline-none transition-all duration-200 cursor-pointer appearance-none pr-8 relative bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2364748B%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22/%3E%3C/svg%3E')] bg-[length:0.65rem_auto] bg-[right_1rem_center] bg-no-repeat"
-          >
-            <option value="">Semua Kabupaten/Kota</option>
-            {listKabupaten.map((kab, index) => (
-              <option key={index} value={kab}>{kab}</option>
-            ))}
-          </select>
         </div>
       </div>
 
       {/* Tabel Data ATS */}
-      <div className="w-full overflow-x-auto">
+      <div className="w-full overflow-x-auto relative min-h-[300px]">
+        {loading && (
+          <div className="absolute inset-0 bg-white/70 backdrop-blur-[1px] z-20 flex flex-col items-center justify-center gap-2">
+            <div className="w-8 h-8 border-3 border-blue-700 border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-xs font-bold text-slate-600">Menyaring Data...</span>
+          </div>
+        )}
+
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="border-b border-slate-100">
-              <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-400">Nama Lengkap</th>
-              <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-400">Jenis Kelamin</th>
-              <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-400">NIK</th>
-              <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-400">Kabupaten / Kota</th>
-              <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-400">Status Saat Ini</th>
-              <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-400 text-center">Action</th>
+            <tr className="border-b border-slate-100 bg-slate-50/50">
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Nama & NISN</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">NIK (Utuh)</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Jenis Kelamin</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Domisili Wilayah</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-center">Status ATS</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-center">Tindak Lanjut</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-center">Aksi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filteredData.length > 0 ? (
-              filteredData.map((item, index) => (
-                <tr 
-                  key={item.id} 
-                  className={`hover:bg-slate-100/50 transition-colors duration-150 ${
-                    index % 2 === 0 ? 'bg-slate-50' : 'bg-white'
-                  }`}
-                >
-                  <td className="px-6 py-4 text-sm font-semibold text-slate-700">{item.nama}</td>
-                  <td className="px-6 py-4 text-sm text-slate-700">{item.jk}</td>
-                  <td className="px-6 py-4 text-sm font-mono text-slate-800 font-semibold">{item.nik}</td>
-                  <td className="px-6 py-4 text-sm text-slate-700">
-                    <span className="font-medium">{item.kabupaten}</span>
-                    <span className="text-xs text-slate-400 block">Kec. {item.kecamatan}</span>
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    {item.status === 'DO' ? (
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-600 border border-red-100">
-                        Drop Out (DO)
+            {data.length > 0 ? (
+              data.map((item, index) => {
+                const isHandled = hasTindakLanjut(item);
+                const jkLabel = getJkLabel(item.jenis_kelamin || item.jk);
+                const desa = item.desa_kelurahan || item.desa || '-';
+                const statusAts = item.status || 'DO';
+
+                return (
+                  <tr 
+                    key={item.id || index} 
+                    className={`hover:bg-blue-50/30 transition-colors duration-150 ${
+                      index % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
+                    }`}
+                  >
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-blue-100/70 text-blue-700 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                          {item.nama ? item.nama.charAt(0).toUpperCase() : 'A'}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-800 leading-snug">{item.nama}</p>
+                          <span className="text-xs font-mono text-slate-400 block mt-0.5">
+                            NISN: {item.nisn || '-'}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200/60">
+                        {item.nik || '-'}
                       </span>
-                    ) : (
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-600 border border-orange-100">
-                        Lulus Tidak Melanjutkan (LTM)
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-center">
-                    <button
-                      onClick={() => handleDetail(item)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1C40AC] hover:bg-[#15328c] text-white text-xs font-medium rounded-md shadow-sm transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1C40AC]/40"
-                    >
-                      <Eye size={14} />
-                      Detail
-                    </button>
-                  </td>
-                </tr>
-              ))
+                    </td>
+
+                    <td className="px-6 py-4 text-xs text-slate-600 font-medium">
+                      {jkLabel}
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <div className="text-xs text-slate-700">
+                        <span className="font-bold block">{item.kabupaten || '-'}</span>
+                        <span className="text-slate-400 block mt-0.5">
+                          Kec. {item.kecamatan || '-'}, Desa {desa}
+                        </span>
+                      </div>
+                    </td>
+
+                    <td className="px-6 py-4 text-center">
+                      {statusAts === 'DO' ? (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-red-50 text-red-600 border border-red-100">
+                          Drop Out
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-orange-50 text-orange-600 border border-orange-100">
+                          LTM
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="px-6 py-4 text-center">
+                      {isHandled ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                          <CheckCircle2 size={12} />
+                          Sudah Ditindak
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-600 border border-amber-100">
+                          <Clock size={12} />
+                          Belum Ditindak
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="px-6 py-4 text-center">
+                      <button
+                        onClick={() => handleDetail(item)}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold rounded-xl shadow-sm transition-all duration-200 cursor-pointer focus:ring-2 focus:ring-blue-700/30"
+                      >
+                        <Eye size={14} />
+                        Detail
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
             ) : (
               <tr>
-                <td colSpan="6" className="px-6 py-12 text-center text-slate-400 text-sm">
-                  Tidak ada data anak tidak sekolah yang ditemukan.
+                <td colSpan="7" className="px-6 py-16 text-center text-slate-400 text-sm">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <User size={32} className="text-slate-300" />
+                    <p className="font-semibold text-slate-500">Tidak ada data Anak Tidak Sekolah yang sesuai pencarian / filter.</p>
+                    <p className="text-xs text-slate-400">Coba ubah kata kunci pencarian atau filter wilayah.</p>
+                  </div>
                 </td>
               </tr>
             )}
@@ -173,10 +332,36 @@ export default function AdminAtsTable({ data = DUMMY_ADMIN_ATS, onDetailClick })
         </table>
       </div>
 
-      {/* Footer / Pagination Minimalis */}
-      <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-        <span>Menampilkan <strong className="text-slate-700">{filteredData.length}</strong> dari <strong className="text-slate-700">{data.length}</strong> data</span>
-        <span className="italic">Panel Kontrol Admin ATS Sulteng</span>
+      {/* Footer / Pagination Controls */}
+      <div className="px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 bg-slate-50/50">
+        <div>
+          <span>Menampilkan <strong className="text-slate-800 font-bold">{data.length}</strong> data</span>
+          {pagination && pagination.total !== undefined && (
+            <span> dari total <strong className="text-slate-800 font-bold">{pagination.total}</strong> di database</span>
+          )}
+        </div>
+
+        {pagination && pagination.last_page > 1 && (
+          <div className="flex items-center gap-2">
+            <button
+              disabled={pagination.current_page <= 1}
+              onClick={() => onPageChange && onPageChange(pagination.current_page - 1)}
+              className="p-1.5 rounded-lg border border-slate-200 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <span className="font-bold text-slate-700">
+              Halaman {pagination.current_page} dari {pagination.last_page}
+            </span>
+            <button
+              disabled={pagination.current_page >= pagination.last_page}
+              onClick={() => onPageChange && onPageChange(pagination.current_page + 1)}
+              className="p-1.5 rounded-lg border border-slate-200 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

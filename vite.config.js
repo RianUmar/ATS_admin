@@ -8,4 +8,11 @@ export default defineConfig({
     react(),
     tailwindcss()
   ],
+  server: {
+    host: true, // Listen on 0.0.0.0 for Docker container support
+    port: 5173,
+    watch: {
+      usePolling: true, // Memastikan Hot Module Reload (HMR) berjalan mulus di Docker
+    }
+  }
 })
