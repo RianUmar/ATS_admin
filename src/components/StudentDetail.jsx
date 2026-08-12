@@ -697,9 +697,8 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
             <div className="w-16 h-16 rounded-3xl bg-slate-100 border border-slate-200 text-slate-400 flex items-center justify-center mb-4 shadow-inner">
               <MapPinOff size={28} />
             </div>
-            <h4 className="text-sm font-bold text-slate-700 font-display">Data Koordinat Peta Belum Tersedia</h4>
-            <p className="text-xs text-slate-500 max-w-sm mt-1.5 leading-relaxed">
-              Data spasial titik lintang dan bujur anak ini belum tercatat di basis data. Peta hanya dapat ditampilkan untuk data yang memiliki titik koordinat valid.
+            <p className="text-xs font-bold text-slate-500 max-w-sm mt-1.5 leading-relaxed">
+              Data spasial titik lintang dan bujur anak ini tidak disediakan oleh basis data Dapodik.
             </p>
             <div className="mt-5 p-3.5 bg-white rounded-2xl border border-slate-200/80 text-xs text-slate-600 w-full max-w-sm text-left shadow-xs">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Rujukan Wilayah Domisili</p>
