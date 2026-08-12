@@ -24,11 +24,45 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
-  Trash2
+  Trash2,
+  Gift,
+  RotateCcw,
+  Edit3,
+  HelpCircle
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { getStudentByIdAPI, createTindakLanjutAPI, deleteTindakLanjutAPI } from '../services/api';
+
+// Opsi Program Bantuan / Intervensi (Khusus saat anak sudah lanjut sekolah)
+const PROGRAM_INTERVENSI_OPTIONS = [
+  'Program Indonesia Pintar (PIP)',
+  'Beasiswa Berani Cerdas',
+  'Lainnya...'
+];
+
+// Opsi Alasan saat Tidak Lanjut Sekolah / Putus
+const ALASAN_TIDAK_LANJUT_OPTIONS = [
+  'Sudah Bekerja / Mencari Nafkah',
+  'Menikah / Membina Rumah Tangga',
+  'Faktor Ekonomi / Ketiadaan Biaya Pendidikan',
+  'Kondisi Geografis / Akses Transportasi Menuju Sekolah Sulit & Jauh',
+  'Kurang Minat / Motivasi untuk Melanjutkan Pendidikan',
+  'Keterbatasan Fisik / Masalah Kesehatan / Disabilitas',
+  'Membantu Pekerjaan Orang Tua / Keluarga di Rumah',
+  'Merasa Usia Sudah Terlalu Dewasa untuk Bersekolah',
+  'Lainnya...'
+];
+
+// Opsi Alasan saat Sudah Lanjut Sekolah
+const ALASAN_SUDAH_LANJUT_OPTIONS = [
+  'Termotivasi dan Memiliki Keinginan Kuat Kembali Belajar',
+  'Mendapatkan Dukungan Penuh dari Orang Tua & Keluarga',
+  'Mendapat Akses Sekolah / Lembaga Pendidikan Non-Formal (PKBM) Terdekat',
+  'Kondisi Finansial Keluarga Telah Membaik',
+  'Terfasilitasi Pendampingan Petugas / Tim Lapangan',
+  'Lainnya...'
+];
 
 // Helper format tanggal Indonesia (contoh: 2008-05-04T00:00:00.000000Z -> 4 Mei 2008)
 const formatDateIndo = (dateStr) => {
@@ -173,7 +207,18 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
   
   // State Form Tindak Lanjut
   const [keterangan, setKeterangan] = useState('');
-  const [alasan, setAlasan] = useState('');
+  
+  // State Program Intervensi (Khusus saat lanjut sekolah)
+  const [programIntervensi, setProgramIntervensi] = useState('');
+  const [isCustomProgram, setIsCustomProgram] = useState(false);
+  const [customProgram, setCustomProgram] = useState('');
+
+  // State Alasan Tindak Lanjut (Field Pilihan + Custom Text)
+  const [selectedAlasan, setSelectedAlasan] = useState('');
+  const [isCustomAlasan, setIsCustomAlasan] = useState(false);
+  const [customAlasan, setCustomAlasan] = useState('');
+
+  // Tanggal Pelaksanaan
   const [tanggalTindakLanjut, setTanggalTindakLanjut] = useState(
     new Date().toISOString().split('T')[0]
   );
@@ -188,6 +233,46 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
   const [submitting, setSubmitting] = useState(false);
   const [showNewForm, setShowNewForm] = useState(false);
   const [alertMsg, setAlertMsg] = useState(null); // { type: 'success' | 'error', text: '' }
+
+  // Handler Perubahan Keterangan
+  const handleKeteranganChange = (val) => {
+    setKeterangan(val);
+    if (val !== 'sudah lanjut sekolah') {
+      setProgramIntervensi('');
+      setIsCustomProgram(false);
+      setCustomProgram('');
+    }
+    // Reset alasan agar opsi dropdown berganti sesuai status baru
+    setSelectedAlasan('');
+    setIsCustomAlasan(false);
+    setCustomAlasan('');
+  };
+
+  // Handler Perubahan Pilihan Program Intervensi
+  const handleProgramSelectChange = (val) => {
+    if (val === 'Lainnya...') {
+      setIsCustomProgram(true);
+      setProgramIntervensi('Lainnya...');
+      setCustomProgram('');
+    } else {
+      setIsCustomProgram(false);
+      setProgramIntervensi(val);
+      setCustomProgram('');
+    }
+  };
+
+  // Handler Perubahan Pilihan Alasan
+  const handleAlasanSelectChange = (val) => {
+    if (val === 'Lainnya...') {
+      setIsCustomAlasan(true);
+      setSelectedAlasan('Lainnya...');
+      setCustomAlasan('');
+    } else {
+      setIsCustomAlasan(false);
+      setSelectedAlasan(val);
+      setCustomAlasan('');
+    }
+  };
 
   // Load Data Siswa
   const loadDetail = () => {
@@ -204,8 +289,38 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
             : (data.tindakanLanjut || null);
 
           if (existingTindakLanjut) {
-            setKeterangan(existingTindakLanjut.keterangan || '');
-            setAlasan(existingTindakLanjut.alasan || '');
+            const currentKet = existingTindakLanjut.keterangan || '';
+            setKeterangan(currentKet);
+
+            // Inisialisasi Program Intervensi
+            const prog = existingTindakLanjut.program_intervensi || existingTindakLanjut.programIntervensi || '';
+            if (prog) {
+              if (PROGRAM_INTERVENSI_OPTIONS.includes(prog)) {
+                setProgramIntervensi(prog);
+                setIsCustomProgram(false);
+              } else {
+                setIsCustomProgram(true);
+                setProgramIntervensi('Lainnya...');
+                setCustomProgram(prog);
+              }
+            }
+
+            // Inisialisasi Alasan
+            const als = existingTindakLanjut.alasan || '';
+            if (als) {
+              const relevantOptions = currentKet === 'sudah lanjut sekolah' 
+                ? ALASAN_SUDAH_LANJUT_OPTIONS 
+                : ALASAN_TIDAK_LANJUT_OPTIONS;
+              if (relevantOptions.includes(als)) {
+                setSelectedAlasan(als);
+                setIsCustomAlasan(false);
+              } else {
+                setIsCustomAlasan(true);
+                setSelectedAlasan('Lainnya...');
+                setCustomAlasan(als);
+              }
+            }
+
             if (existingTindakLanjut.tanggal_tindak_lanjut) {
               setTanggalTindakLanjut(existingTindakLanjut.tanggal_tindak_lanjut.split('T')[0]);
             }
@@ -289,14 +404,21 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
       return;
     }
 
+    const finalProgram = keterangan === 'sudah lanjut sekolah'
+      ? (isCustomProgram ? customProgram : programIntervensi)
+      : '';
+
+    const finalAlasan = isCustomAlasan ? customAlasan : selectedAlasan;
+
     setSubmitting(true);
     setAlertMsg(null);
 
     const formData = new FormData();
     formData.append('anak_tidak_sekolah_id', id);
     formData.append('keterangan', keterangan);
+    formData.append('program_intervensi', finalProgram || '');
+    formData.append('alasan', finalAlasan || '');
     formData.append('tanggal_tindak_lanjut', tanggalTindakLanjut || '');
-    formData.append('alasan', alasan || '');
 
     if (dokumenFile) {
       formData.append('dokumen_pendukung', dokumenFile);
@@ -358,7 +480,12 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
 
   const handleResetForm = () => {
     setKeterangan('');
-    setAlasan('');
+    setProgramIntervensi('');
+    setIsCustomProgram(false);
+    setCustomProgram('');
+    setSelectedAlasan('');
+    setIsCustomAlasan(false);
+    setCustomAlasan('');
     setTanggalTindakLanjut(new Date().toISOString().split('T')[0]);
     setDokumenFile(null);
     setDokumenName('');
@@ -761,8 +888,9 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
 
                 return (
                   <div key={item.id || idx} className="bg-slate-50/60 rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-2xs space-y-6">
-                                       {/* Baris 1: 2 Kartu Metrik Utama (Full Width Grid) */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    
+                    {/* Baris 1: Kartu Metrik Utama */}
+                    <div className={`grid grid-cols-1 sm:grid-cols-2 ${(item.program_intervensi || item.programIntervensi) ? 'lg:grid-cols-3' : ''} gap-4`}>
                       
                       <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-2xs flex items-center gap-3.5">
                         <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center flex-shrink-0">
@@ -775,6 +903,20 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
                           </p>
                         </div>
                       </div>
+
+                      {(item.program_intervensi || item.programIntervensi) && (
+                        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-2xs flex items-center gap-3.5">
+                          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center flex-shrink-0">
+                            <Gift size={20} />
+                          </div>
+                          <div className="min-w-0">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Program Bantuan</span>
+                            <p className="text-xs font-extrabold text-indigo-900 truncate mt-0.5" title={item.program_intervensi || item.programIntervensi}>
+                              {item.program_intervensi || item.programIntervensi}
+                            </p>
+                          </div>
+                        </div>
+                      )}
 
                       <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-2xs flex items-center gap-3.5">
                         <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center flex-shrink-0">
@@ -798,9 +940,16 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
                         
                         {/* Box Catatan Hasil Kunjungan */}
                         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs flex-1 flex flex-col">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mb-2.5">
-                            <FileText size={13} className="text-blue-600" /> Catatan & Rincian Hasil Lapangan
-                          </span>
+                          <div className="flex items-center justify-between gap-2 mb-2.5">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                              <FileText size={13} className="text-blue-600" /> Catatan & Rincian Alasan Lapangan
+                            </span>
+                            {(item.program_intervensi || item.programIntervensi) && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                <Gift size={11} /> {item.program_intervensi || item.programIntervensi}
+                              </span>
+                            )}
+                          </div>
                           <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-100 flex-1">
                             <p className="text-xs text-slate-700 leading-relaxed font-medium">
                               {item.alasan || 'Tidak ada catatan rincian tambahan.'}
@@ -925,30 +1074,124 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 
-                {/* Kolom Kiri: Keterangan, Tanggal & Alasan */}
+                {/* Kolom Kiri: Keterangan (2 Opsi), Program Intervensi (Kondisional), Alasan (Select + Custom), Tanggal */}
                 <div className="flex flex-col gap-4">
                   
-                  {/* Dropdown Keterangan Status */}
+                  {/* 1. Dropdown Keterangan Status (HANYA 2 OPSI) */}
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
                       Keterangan Tindak Lanjut <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={keterangan}
-                      onChange={(e) => setKeterangan(e.target.value)}
+                      onChange={(e) => handleKeteranganChange(e.target.value)}
                       required
                       className="w-full px-4 py-3 bg-slate-50 hover:bg-slate-100/60 focus:bg-white text-xs font-semibold text-slate-700 rounded-2xl border border-slate-200 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all cursor-pointer"
                     >
-                      <option value="" disabled>-- Pilih Hasil Tindak Lanjut --</option>
+                      <option value="" disabled>-- Pilih Status Tindak Lanjut --</option>
                       <option value="sudah lanjut sekolah">Sudah Lanjut Sekolah</option>
                       <option value="tidak lanjut sekolah">Tidak Lanjut Sekolah</option>
-                      <option value="dalam proses mediasi">Dalam Proses Mediasi & Bantuan</option>
-                      <option value="pindah domisili">Pindah Domisili ke Luar Daerah</option>
-                      <option value="bekerja">Bekerja / Menikah</option>
                     </select>
                   </div>
 
-                  {/* Tanggal Pelaksanaan Kunjungan */}
+                  {/* 2. Program Intervensi (HANYA TAMPIL JIKA 'sudah lanjut sekolah') */}
+                  {keterangan === 'sudah lanjut sekolah' && (
+                    <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-blue-900 uppercase tracking-wide flex items-center gap-1.5">
+                          <Gift size={14} className="text-blue-700" /> Program Bantuan / Intervensi
+                        </label>
+                        {isCustomProgram && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsCustomProgram(false);
+                              setProgramIntervensi('');
+                              setCustomProgram('');
+                            }}
+                            className="text-[10px] font-bold text-blue-700 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
+                          >
+                            <RotateCcw size={11} /> Pilih dari Opsi
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500">
+                        Apakah anak lanjut bersekolah karena mendapatkan program bantuan/intervensi khusus?
+                      </p>
+
+                      {!isCustomProgram ? (
+                        <select
+                          value={programIntervensi}
+                          onChange={(e) => handleProgramSelectChange(e.target.value)}
+                          className="w-full px-4 py-3 bg-white text-xs font-semibold text-slate-700 rounded-xl border border-blue-200 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all cursor-pointer"
+                        >
+                          <option value="">-- Pilih Jenis Program Bantuan / Mandiri --</option>
+                          {PROGRAM_INTERVENSI_OPTIONS.map((opt, i) => (
+                            <option key={i} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="space-y-1.5">
+                          <input
+                            type="text"
+                            value={customProgram}
+                            onChange={(e) => setCustomProgram(e.target.value)}
+                            placeholder="Ketik nama program bantuan / intervensi lainnya..."
+                            className="w-full px-4 py-3 bg-white text-xs font-semibold text-slate-700 rounded-xl border border-blue-300 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all"
+                            autoFocus
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 3. Field Alasan (Field Pilihan + Opsi 'Lainnya...' untuk Mengetik Bebas) */}
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+                        Alasan {keterangan === 'sudah lanjut sekolah' ? 'Lanjut Sekolah' : (keterangan === 'tidak lanjut sekolah' ? 'Putus / Tidak Lanjut' : 'Tindak Lanjut')}
+                      </label>
+                      {isCustomAlasan && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsCustomAlasan(false);
+                            setSelectedAlasan('');
+                            setCustomAlasan('');
+                          }}
+                          className="text-[10px] font-bold text-blue-700 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
+                        >
+                          <RotateCcw size={11} /> Pilih dari Daftar Opsi
+                        </button>
+                      )}
+                    </div>
+
+                    {!isCustomAlasan ? (
+                      <select
+                        value={selectedAlasan}
+                        onChange={(e) => handleAlasanSelectChange(e.target.value)}
+                        className="w-full px-4 py-3 bg-slate-50 hover:bg-slate-100/60 focus:bg-white text-xs font-semibold text-slate-700 rounded-2xl border border-slate-200 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all cursor-pointer"
+                      >
+                        <option value="">-- Pilih Alasan Utama --</option>
+                        {(keterangan === 'sudah lanjut sekolah' ? ALASAN_SUDAH_LANJUT_OPTIONS : ALASAN_TIDAK_LANJUT_OPTIONS).map((opt, i) => (
+                          <option key={i} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <textarea
+                          value={customAlasan}
+                          onChange={(e) => setCustomAlasan(e.target.value)}
+                          placeholder="Tuliskan alasan lainnya secara rinci di sini..."
+                          rows={3}
+                          className="w-full px-4 py-3 bg-white text-xs font-medium text-slate-700 rounded-2xl border border-blue-300 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all resize-none shadow-2xs"
+                          autoFocus
+                        ></textarea>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 4. Tanggal Pelaksanaan Kunjungan / Mediasi (Diletakkan di Bawah Field Alasan) */}
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
                       Tanggal Pelaksanaan Kunjungan / Mediasi
@@ -957,22 +1200,8 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
                       type="date"
                       value={tanggalTindakLanjut}
                       onChange={(e) => setTanggalTindakLanjut(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 hover:bg-slate-100/60 focus:bg-white text-xs font-semibold text-slate-700 rounded-2xl border border-slate-200 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all"
+                      className="w-full px-4 py-3 bg-slate-50 hover:bg-slate-100/60 focus:bg-white text-xs font-semibold text-slate-700 rounded-2xl border border-slate-200 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all cursor-pointer"
                     />
-                  </div>
-
-                  {/* Textarea Alasan */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
-                      Rincian Alasan / Hasil Kunjungan Lapangan
-                    </label>
-                    <textarea
-                      value={alasan}
-                      onChange={(e) => setAlasan(e.target.value)}
-                      placeholder="Tuliskan catatan hasil mediasi dengan orang tua, kendala seragam/biaya, atau nama sekolah baru penerima..."
-                      rows={4}
-                      className="w-full px-4 py-3 bg-slate-50 hover:bg-slate-100/60 focus:bg-white text-xs font-medium text-slate-700 rounded-2xl border border-slate-200 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all resize-none"
-                    ></textarea>
                   </div>
 
                 </div>

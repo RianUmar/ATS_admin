@@ -137,9 +137,14 @@ export const createTindakLanjutAPI = async (formDataPayload) => {
       ? formDataPayload.get('alasan') 
       : formDataPayload.alasan;
 
+    const program_intervensi = formDataPayload instanceof FormData 
+      ? formDataPayload.get('program_intervensi') 
+      : formDataPayload.program_intervensi;
+
     const mockSaved = mockDb.updateStudentTindakanLanjut(atsId, {
       keterangan,
       alasan,
+      program_intervensi,
       tanggal_tindak_lanjut: new Date().toISOString().split('T')[0],
       dokumenName: 'dokumen_pendukung.pdf',
       fotoUrl: 'https://images.unsplash.com/photo-1577896851231-70ef18881754?w=600&auto=format&fit=crop&q=60'
