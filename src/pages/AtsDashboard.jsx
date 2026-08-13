@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import AdminAtsTable from '../components/AdminAtsTable';
 import StudentDetail from '../components/StudentDetail';
 import ImportModal from '../components/ImportModal';
+import FilteredExportView from '../components/FilteredExportView';
 import { 
   getStudentsAPI, 
   getImportHistoryAPI 
@@ -16,10 +17,16 @@ import {
   Clock, 
   Upload, 
   History, 
-  RefreshCw 
+  RefreshCw,
+  Download,
+  Filter,
+  Sparkles,
+  ArrowRight,
+  FileSpreadsheet
 } from 'lucide-react';
 
 export default function AtsDashboard() {
+  const [mainView, setMainView] = useState('dashboard'); // 'dashboard' | 'export'
   const [selectedDetailId, setSelectedDetailId] = useState(null);
   const [students, setStudents] = useState([]);
   const [importHistory, setImportHistory] = useState([]);
@@ -99,34 +106,39 @@ export default function AtsDashboard() {
         setLoading(false);
       })
       .catch((error) => {
-        console.error('Gagal memuat data siswa ATS:', error);
+        console.error('[AtsDashboard] Gagal memuat data siswa:', error);
         setLoading(false);
       });
   }, [activeTab, filters]);
 
   // Ambil data riwayat import
-  const fetchHistories = () => {
+  const fetchHistories = useCallback(() => {
     getImportHistoryAPI()
       .then((res) => {
         setImportHistory(res.data || []);
       })
       .catch((err) => console.error('Gagal mengambil riwayat import:', err));
-  };
+  }, []);
 
   useEffect(() => {
     fetchStudents(activeTab, 1, filters);
     fetchGlobalMetrics();
     fetchHistories();
-  }, [activeTab, fetchStudents, fetchGlobalMetrics]);
+  }, [activeTab, fetchStudents, fetchGlobalMetrics, fetchHistories]);
 
   const handleAdminDetailClick = (id) => {
     setSelectedDetailId(id);
   };
 
+  const handleImportSuccess = () => {
+    fetchStudents(activeTab, 1, filters);
+    fetchGlobalMetrics();
+    fetchHistories();
+  };
+
   const handleSaveSuccess = () => {
     fetchStudents(activeTab, currentPage, filters);
     fetchGlobalMetrics();
-    fetchHistories();
   };
 
   const handlePageChange = (newPage) => {
@@ -140,9 +152,11 @@ export default function AtsDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-between">
-      {/* Header Panel Administrator */}
+      {/* Header Panel Administrator dengan Navigasi Navbar */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          
+          {/* Logo & Judul Sistem */}
           <div className="flex items-center gap-3">
             <div>
               <h1 className="text-lg font-bold text-slate-800 tracking-tight font-display flex items-center gap-2">
@@ -154,11 +168,34 @@ export default function AtsDashboard() {
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
-            <div className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-blue-700 bg-blue-50 px-3.5 py-1.5 rounded-full border border-blue-100">
-              <ShieldCheck size={14} className="text-blue-700" />
-              Sesi Admin Terhubung
-            </div>
+          {/* Navigasi Tab Utama (Dashboard vs Rekapan & Export) */}
+          <div className="flex items-center gap-3">
+            <nav className="flex items-center gap-1.5 bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200/80 shadow-2xs">
+              <button
+                onClick={() => { setMainView('dashboard'); setSelectedDetailId(null); }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  mainView === 'dashboard'
+                    ? 'bg-white text-blue-700 shadow-xs border border-slate-200/60'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                }`}
+              >
+                <Users size={14} />
+                Dashboard & Data ATS
+              </button>
+
+              <button
+                onClick={() => { setMainView('export'); setSelectedDetailId(null); }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  mainView === 'export'
+                    ? 'bg-blue-700 text-white shadow-md shadow-blue-700/20'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                }`}
+              >
+                <Download size={14} />
+                Rekapan & Export Terfilter
+              </button>
+            </nav>
+
             <button
               onClick={() => { fetchStudents(activeTab, currentPage, filters); fetchGlobalMetrics(); fetchHistories(); }}
               title="Segarkan Data"
@@ -167,21 +204,31 @@ export default function AtsDashboard() {
               <RefreshCw size={16} />
             </button>
           </div>
+
         </div>
       </header>
 
       {/* Konten Utama */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
         
-        {/* Tampilan Detail Siswa */}
+        {/* 1. Tampilan Detail Siswa */}
         {selectedDetailId ? (
           <StudentDetail 
             id={selectedDetailId} 
             onBack={() => setSelectedDetailId(null)}
             onSaveSuccess={handleSaveSuccess}
           />
+        ) : mainView === 'export' ? (
+          /* 2. Tampilan Fitur Rekapan & Export Terfilter */
+          <FilteredExportView
+            onNavigateToDashboard={() => {
+              setMainView('dashboard');
+              fetchStudents();
+              fetchGlobalMetrics();
+            }}
+          />
         ) : (
-          /* Tampilan Utama Dashboard */
+          /* 3. Tampilan Utama Dashboard */
           <div className="space-y-8 animate-fadeIn">
             
             {/* Banner Selamat Datang */}
@@ -313,15 +360,26 @@ export default function AtsDashboard() {
                   </button>
                 </div>
                 
-                {/* Tombol Import Excel */}
-                <button
-                  type="button"
-                  onClick={() => setIsImportModalOpen(true)}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold rounded-xl shadow-md shadow-blue-700/10 transition-colors cursor-pointer self-start lg:self-auto"
-                >
-                  <Upload size={15} />
-                  Import Data ATS (Excel / CSV)
-                </button>
+                {/* Tombol Aksi Toolbar */}
+                <div className="grid grid-cols-2 sm:flex sm:items-center gap-3 w-full lg:w-auto pb-2 lg:pb-0">
+                  <button
+                    type="button"
+                    onClick={() => setMainView('export')}
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 text-white text-xs font-bold rounded-xl shadow-md shadow-blue-700/10 transition-all cursor-pointer text-center w-full sm:w-48"
+                  >
+                    <Download size={14} className="flex-shrink-0" />
+                    <span>Rekapan & Export</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsImportModalOpen(true)}
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold rounded-xl shadow-2xs transition-colors cursor-pointer text-center w-full sm:w-48"
+                  >
+                    <Upload size={14} className="flex-shrink-0" />
+                    <span>Import Data ATS</span>
+                  </button>
+                </div>
               </div>
 
               {/* Render Tabel Aktif */}
