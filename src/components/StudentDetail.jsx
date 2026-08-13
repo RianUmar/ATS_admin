@@ -33,6 +33,7 @@ import {
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { getStudentByIdAPI, createTindakLanjutAPI, deleteTindakLanjutAPI } from '../services/api';
+import { getSchoolName } from '../utils/schoolHelper';
 
 // Opsi Program Bantuan / Intervensi (Khusus saat anak sudah lanjut sekolah)
 const PROGRAM_INTERVENSI_OPTIONS = [
@@ -684,8 +685,15 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 text-xs">
               <div className="bg-slate-50/60 p-3.5 rounded-2xl border border-slate-100">
-                <span className="text-slate-400 block uppercase font-bold text-[10px]">ID / Nama Sekolah Asal</span>
-                <span className="font-bold text-slate-800 text-sm mt-1 block">{student.sekolah_id || student.idSekolah || '-'}</span>
+                <span className="text-slate-400 block uppercase font-bold text-[10px]">Nama Sekolah Asal</span>
+                <span className="font-bold text-slate-800 text-sm mt-1 block leading-snug">
+                  {getSchoolName(student.sekolah_id || student.idSekolah)}
+                </span>
+                {(student.sekolah_id || student.idSekolah) && (
+                  <span className="text-[10px] text-slate-400 font-mono block mt-1 truncate" title={student.sekolah_id || student.idSekolah}>
+                    ID: {student.sekolah_id || student.idSekolah}
+                  </span>
+                )}
               </div>
               <div className="bg-slate-50/60 p-3.5 rounded-2xl border border-slate-100">
                 <span className="text-slate-400 block uppercase font-bold text-[10px]">Tingkat Pendidikan / Kelas</span>
@@ -1099,7 +1107,7 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
                     <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100 space-y-2.5">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-bold text-blue-900 uppercase tracking-wide flex items-center gap-1.5">
-                          <Gift size={14} className="text-blue-700" /> Program Bantuan / Intervensi
+                          Program Bantuan / Intervensi
                         </label>
                         {isCustomProgram && (
                           <button
