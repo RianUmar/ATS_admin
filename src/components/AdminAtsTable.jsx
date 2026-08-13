@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Search, Eye, CheckCircle2, Clock, User, FileText, ChevronLeft, ChevronRight, X, Loader2 } from 'lucide-react';
+import { Search, Eye, CheckCircle2, Clock, User, FileText, ChevronLeft, ChevronRight, X, Loader2, Filter } from 'lucide-react';
 
 const SULTENG_KABUPATEN = [
   'Kota Palu',
@@ -29,6 +29,7 @@ export default function AdminAtsTable({
   const [selectedKabupaten, setSelectedKabupaten] = useState('');
   const [selectedKecamatan, setSelectedKecamatan] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   const isFirstMount = useRef(true);
 
   const handleDetail = (item) => {
@@ -173,42 +174,91 @@ export default function AdminAtsTable({
             </button>
           </form>
 
-          {/* Filter Status ATS */}
-          <select
-            value={selectedStatus}
-            onChange={handleStatusChange}
-            className="px-3.5 py-2 bg-white text-xs text-slate-600 rounded-full border border-slate-200 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all cursor-pointer"
+          {/* Tombol Filter Kategori (Membuka Panel Dropdown) */}
+          <button
+            type="button"
+            onClick={() => setShowFilters(!showFilters)}
+            className={`inline-flex items-center gap-1.5 px-4.5 py-2 text-xs font-bold rounded-full border transition-all cursor-pointer ${
+              showFilters 
+                ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-2xs' 
+                : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'
+            }`}
           >
-            <option value="">Semua Status ATS</option>
-            <option value="DO">Drop Out (DO)</option>
-            <option value="LTM">Lulus Tidak Melanjutkan (LTM)</option>
-          </select>
+            <Filter size={13} />
+            <span>Filter Kategori</span>
+            {(selectedKabupaten || selectedKecamatan || selectedStatus) && (
+              <span className="w-2 h-2 rounded-full bg-blue-700 inline-block ml-1"></span>
+            )}
+          </button>
 
-          {/* Dropdown Kabupaten Seluruh Sulawesi Tengah */}
-          <select
-            value={selectedKabupaten}
-            onChange={handleKabupatenChange}
-            className="px-3.5 py-2 bg-white text-xs text-slate-600 rounded-full border border-slate-200 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all cursor-pointer"
-          >
-            <option value="">Semua Kab / Kota ({SULTENG_KABUPATEN.length})</option>
-            {SULTENG_KABUPATEN.map((kab, index) => (
-              <option key={index} value={kab}>{kab}</option>
-            ))}
-          </select>
-
-          {/* Dropdown Kecamatan */}
-          <select
-            value={selectedKecamatan}
-            onChange={handleKecamatanChange}
-            className="px-3.5 py-2 bg-white text-xs text-slate-600 rounded-full border border-slate-200 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all cursor-pointer"
-          >
-            <option value="">Semua Kecamatan</option>
-            {listKecamatan.map((kec, index) => (
-              <option key={index} value={kec}>{kec}</option>
-            ))}
-          </select>
         </div>
       </div>
+
+      {/* Panel Dropdown Filter Bertingkat Collapsible */}
+      {showFilters && (
+        <div className="px-6 py-4.5 bg-slate-50/60 border-b border-slate-100 flex flex-wrap items-center gap-4 animate-fadeIn">
+          
+          {/* Dropdown Kabupaten */}
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Kabupaten / Kota</span>
+            <select
+              value={selectedKabupaten}
+              onChange={handleKabupatenChange}
+              className="px-3 py-2 bg-white text-xs font-semibold text-slate-700 rounded-xl border border-slate-200 focus:border-blue-700 outline-none transition-all cursor-pointer min-w-[170px]"
+            >
+              <option value="">Semua Kab / Kota ({SULTENG_KABUPATEN.length})</option>
+              {SULTENG_KABUPATEN.map((kab, index) => (
+                <option key={index} value={kab}>{kab}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Dropdown Kecamatan */}
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Kecamatan</span>
+            <select
+              value={selectedKecamatan}
+              onChange={handleKecamatanChange}
+              className="px-3 py-2 bg-white text-xs font-semibold text-slate-700 rounded-xl border border-slate-200 focus:border-blue-700 outline-none transition-all cursor-pointer min-w-[170px]"
+            >
+              <option value="">Semua Kecamatan</option>
+              {listKecamatan.map((kec, index) => (
+                <option key={index} value={kec}>{kec}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Dropdown Status ATS */}
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Status ATS</span>
+            <select
+              value={selectedStatus}
+              onChange={handleStatusChange}
+              className="px-3 py-2 bg-white text-xs font-semibold text-slate-700 rounded-xl border border-slate-200 focus:border-blue-700 outline-none transition-all cursor-pointer min-w-[170px]"
+            >
+              <option value="">Semua Status ATS</option>
+              <option value="DO">Drop Out (DO)</option>
+              <option value="LTM">Lulus Tidak Melanjutkan (LTM)</option>
+            </select>
+          </div>
+
+          {/* Reset Button */}
+          {(selectedKabupaten || selectedKecamatan || selectedStatus) && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedKabupaten('');
+                setSelectedKecamatan('');
+                setSelectedStatus('');
+              }}
+              className="self-end px-3 py-2 text-xs font-bold text-slate-500 hover:text-blue-750 transition-colors cursor-pointer"
+            >
+              Reset Filter
+            </button>
+          )}
+
+        </div>
+      )}
 
       {/* Tabel Data ATS */}
       <div className="w-full overflow-x-auto relative min-h-[300px]">
@@ -221,14 +271,14 @@ export default function AdminAtsTable({
 
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="border-b border-slate-100 bg-slate-50/50">
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Nama & NISN</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">NIK (Utuh)</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Jenis Kelamin</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Domisili Wilayah</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-center">Status ATS</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-center">Tindak Lanjut</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-center">Aksi</th>
+            <tr className="border-b-2 border-slate-200/80 bg-slate-100/90 text-slate-700 shadow-2xs">
+              <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-700">Nama & NISN</th>
+              <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-700">NIK (Utuh)</th>
+              <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-700">Jenis Kelamin</th>
+              <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-700">Domisili Wilayah</th>
+              <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-700 text-center">Status ATS</th>
+              <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-700 text-center">Tindak Lanjut</th>
+              <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-700 text-center">Aksi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">

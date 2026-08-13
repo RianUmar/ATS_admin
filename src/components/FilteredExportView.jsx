@@ -477,13 +477,10 @@ export default function FilteredExportView({ onNavigateToDashboard }) {
       {/* Banner Header Fitur */}
       <div className="p-6 sm:p-8 bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 rounded-3xl text-white shadow-xl shadow-blue-900/10 relative overflow-hidden">
         <div className="absolute right-0 bottom-0 opacity-10 translate-x-12 translate-y-12 scale-150 pointer-events-none">
-          <Download size={240} />
+          <Download size={200} />
         </div>
         <div className="relative z-10 max-w-3xl space-y-2">
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-500/20 text-blue-300 border border-blue-400/30 backdrop-blur-sm">
-              <Sparkles size={13} /> Modul Rekapitulasi & Ekspor Laporan
-            </span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight font-display text-white">
             Rekapan & Ekspor Data ATS Terfilter
@@ -593,7 +590,7 @@ export default function FilteredExportView({ onNavigateToDashboard }) {
                 >
                   <option value="">
                     {selectedKabupaten 
-                      ? `-- Semua Kecamatan di ${selectedKabupaten} (${kecamatanList.length}) --` 
+                      ? `Semua Kecamatan di ${selectedKabupaten} (${kecamatanList.length})` 
                       : `Semua Kecamatan (${kecamatanList.length})`}
                   </option>
                   {kecamatanList.map((kec) => (

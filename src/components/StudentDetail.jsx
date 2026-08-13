@@ -36,7 +36,7 @@ import { getStudentByIdAPI, createTindakLanjutAPI, deleteTindakLanjutAPI } from 
 import { getSchoolName } from '../utils/schoolHelper';
 
 // Opsi Program Bantuan / Intervensi (Khusus saat anak sudah lanjut sekolah)
-const PROGRAM_INTERVENSI_OPTIONS = [
+let PROGRAM_INTERVENSI_OPTIONS = [
   'Program Indonesia Pintar (PIP)',
   'Beasiswa Berani Cerdas',
   'Lainnya...'
@@ -210,6 +210,7 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
   const [keterangan, setKeterangan] = useState('');
   
   // State Program Intervensi (Khusus saat lanjut sekolah)
+  const [programOptions, setProgramOptions] = useState(PROGRAM_INTERVENSI_OPTIONS);
   const [programIntervensi, setProgramIntervensi] = useState('');
   const [isCustomProgram, setIsCustomProgram] = useState(false);
   const [customProgram, setCustomProgram] = useState('');
@@ -430,6 +431,21 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
 
     try {
       await createTindakLanjutAPI(formData);
+      
+      // Jika admin memasukkan program kustom baru, tambahkan ke pilihan otomatis secara instan
+      if (keterangan === 'sudah lanjut sekolah' && isCustomProgram && customProgram.trim()) {
+        const trimmedVal = customProgram.trim();
+        if (!PROGRAM_INTERVENSI_OPTIONS.includes(trimmedVal)) {
+          const index = PROGRAM_INTERVENSI_OPTIONS.indexOf('Lainnya...');
+          if (index !== -1) {
+            PROGRAM_INTERVENSI_OPTIONS.splice(index, 0, trimmedVal);
+          } else {
+            PROGRAM_INTERVENSI_OPTIONS.push(trimmedVal);
+          }
+          setProgramOptions([...PROGRAM_INTERVENSI_OPTIONS]);
+        }
+      }
+
       setAlertMsg({
         type: 'success',
         text: 'Data tindak lanjut berhasil disimpan ke basis data backend!'
@@ -1134,7 +1150,7 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
                           className="w-full px-4 py-3 bg-white text-xs font-semibold text-slate-700 rounded-xl border border-blue-200 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all cursor-pointer"
                         >
                           <option value="">-- Pilih Jenis Program Bantuan / Mandiri --</option>
-                          {PROGRAM_INTERVENSI_OPTIONS.map((opt, i) => (
+                          {programOptions.map((opt, i) => (
                             <option key={i} value={opt}>{opt}</option>
                           ))}
                         </select>

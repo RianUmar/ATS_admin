@@ -237,9 +237,6 @@ export default function AtsDashboard() {
                 <Layers size={240} />
               </div>
               <div className="relative z-10 max-w-3xl space-y-2">
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold bg-blue-500/30 text-blue-100 border border-blue-400/20">
-                  Data Terintegrasi Backend Laravel • Basis Data MySQL (4.268 Data Se-Sulteng)
-                </span>
                 <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight font-display">
                   Dashboard Administrasi & Intervensi ATS
                 </h2>
