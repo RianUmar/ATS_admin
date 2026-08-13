@@ -55,6 +55,7 @@ export default function FilteredExportView({ onNavigateToDashboard }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [exporting, setExporting] = useState(false);
+  const [isDownloadOpen, setIsDownloadOpen] = useState(false);
 
   // =========================================================================
   // 1. FETCH DATA ATS DARI BASIS DATA
@@ -488,7 +489,7 @@ export default function FilteredExportView({ onNavigateToDashboard }) {
             Rekapan & Ekspor Data ATS Terfilter
           </h2>
           <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-light">
-            Saring data Anak Tidak Sekolah secara bertingkat (Kabupaten &rarr; Kecamatan &rarr; Jenjang &rarr; Status ATS &rarr; Penanganan & Bantuan), telaah ringkasan grafik interaktif, dan unduh laporan resmi dalam format <strong>Excel (.xlsx)</strong> atau <strong>Cetak PDF</strong>.
+            Saring data Anak Tidak Sekolah secara bertingkat (Kabupaten &rarr; Kecamatan &rarr; Jenjang &rarr; Status ATS &rarr; Penanganan & Bantuan) dan unduh laporan resmi dalam format <strong>Excel (.xlsx)</strong> atau <strong>Cetak PDF</strong>.
           </p>
         </div>
       </div>
@@ -538,137 +539,166 @@ export default function FilteredExportView({ onNavigateToDashboard }) {
           </div>
         </div>
 
-        {/* Grid Dropdown Filter - Layout Rapi 6 Kolom */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        {/* Kontainer Filter Berkelompok - Sangat Mudah Dipahami Orang Awam */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          {/* Filter 1: Kabupaten */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wide flex items-center gap-1">
-              <MapPin size={12} className="text-blue-600" /> 1. Kabupaten
-            </label>
-            <select
-              value={selectedKabupaten}
-              onChange={(e) => {
-                setSelectedKabupaten(e.target.value);
-                setSelectedKecamatan('');
-                setCurrentPage(1);
-              }}
-              className="w-full px-3 py-2.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white text-xs font-bold text-slate-700 rounded-xl border border-slate-200 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all cursor-pointer"
-            >
-              <option value="">-- Semua Kab ({kabupatenList.length}) --</option>
-              {kabupatenList.map((kab) => (
-                <option key={kab.name} value={kab.name}>
-                  {kab.name} ({kab.count})
-                </option>
-              ))}
-            </select>
+          {/* Kelompok A: Filter Wilayah (📍 Lokasi Domisili) */}
+          <div className="lg:col-span-1 bg-slate-50/70 p-5 rounded-2xl border border-slate-200/60 space-y-4">
+            <div className="flex items-center gap-2.5 border-b border-slate-200/80 pb-3">
+              <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
+                <MapPin size={16} />
+              </div>
+              <div>
+                <h4 className="text-xs font-extrabold text-slate-800">1. Pilih Lokasi Wilayah</h4>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Wilayah Tugas Anda</p>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              {/* Filter 1: Kabupaten */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wide">
+                  Kabupaten / Kota
+                </label>
+                <select
+                  value={selectedKabupaten}
+                  onChange={(e) => {
+                    setSelectedKabupaten(e.target.value);
+                    setSelectedKecamatan('');
+                    setCurrentPage(1);
+                  }}
+                  className="w-full px-3.5 py-2.5 bg-white text-xs font-bold text-slate-700 rounded-xl border border-slate-200 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all cursor-pointer shadow-2xs"
+                >
+                  <option value="">Tampilkan Semua Kabupaten ({kabupatenList.length})</option>
+                  {kabupatenList.map((kab) => (
+                    <option key={kab.name} value={kab.name}>
+                      {kab.name} ({kab.count} anak)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Filter 2: Kecamatan (Dinamis dari Kabupaten) */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wide">
+                  Kecamatan
+                </label>
+                <select
+                  value={selectedKecamatan}
+                  onChange={(e) => {
+                    setSelectedKecamatan(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full px-3.5 py-2.5 bg-white text-xs font-bold text-slate-700 rounded-xl border border-slate-200 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all cursor-pointer shadow-2xs"
+                >
+                  <option value="">
+                    {selectedKabupaten 
+                      ? `-- Semua Kecamatan di ${selectedKabupaten} (${kecamatanList.length}) --` 
+                      : `Semua Kecamatan (${kecamatanList.length})`}
+                  </option>
+                  {kecamatanList.map((kec) => (
+                    <option key={kec.name} value={kec.name}>
+                      Kecamatan {kec.name} ({kec.count} anak)
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
 
-          {/* Filter 2: Kecamatan (Dinamis dari Kabupaten) */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wide flex items-center gap-1">
-              <MapPin size={12} className="text-indigo-600" /> 2. Kecamatan
-            </label>
-            <select
-              value={selectedKecamatan}
-              onChange={(e) => {
-                setSelectedKecamatan(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full px-3 py-2.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white text-xs font-bold text-slate-700 rounded-xl border border-slate-200 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all cursor-pointer"
-            >
-              <option value="">
-                {selectedKabupaten 
-                  ? `-- Semua Kec. di ${selectedKabupaten} (${kecamatanList.length}) --` 
-                  : `-- Semua Kecamatan (${kecamatanList.length}) --`}
-              </option>
-              {kecamatanList.map((kec) => (
-                <option key={kec.name} value={kec.name}>
-                  Kec. {kec.name} ({kec.count})
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Kelompok B: Karakteristik Siswa & Status (👤 Kategori & Status Anak) */}
+          <div className="lg:col-span-2 bg-slate-50/70 p-5 rounded-2xl border border-slate-200/60 space-y-4">
+            <div className="flex items-center gap-2.5 border-b border-slate-200/80 pb-3">
+              <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
+                <Users size={16} />
+              </div>
+              <div>
+                <h4 className="text-xs font-extrabold text-slate-800">2. Pilih Kategori & Karakteristik Anak</h4>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Pendidikan, Status & Gender</p>
+              </div>
+            </div>
 
-          {/* Filter 3: Jenjang Pendidikan */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wide flex items-center gap-1">
-              <GraduationCap size={12} className="text-emerald-600" /> 3. Jenjang
-            </label>
-            <select
-              value={selectedJenjang}
-              onChange={(e) => {
-                setSelectedJenjang(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full px-3 py-2.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white text-xs font-bold text-slate-700 rounded-xl border border-slate-200 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all cursor-pointer"
-            >
-              <option value="">-- Semua Jenjang --</option>
-              {jenjangList.map((j) => (
-                <option key={j.name} value={j.name}>
-                  {j.name} ({j.count})
-                </option>
-              ))}
-            </select>
-          </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Filter 3: Jenjang Pendidikan */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wide">
+                  Jenjang Pendidikan Asal
+                </label>
+                <select
+                  value={selectedJenjang}
+                  onChange={(e) => {
+                    setSelectedJenjang(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full px-3.5 py-2.5 bg-white text-xs font-bold text-slate-700 rounded-xl border border-slate-200 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all cursor-pointer shadow-2xs"
+                >
+                  <option value="">Semua Jenjang Sekolah</option>
+                  {jenjangList.map((j) => (
+                    <option key={j.name} value={j.name}>
+                      {j.name} ({j.count} anak)
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-          {/* Filter 4: Status Kategori ATS */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wide flex items-center gap-1">
-              <ShieldAlert size={12} className="text-red-500" /> 4. Status ATS
-            </label>
-            <select
-              value={selectedStatus}
-              onChange={(e) => {
-                setSelectedStatus(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full px-3 py-2.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white text-xs font-bold text-slate-700 rounded-xl border border-slate-200 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all cursor-pointer"
-            >
-              <option value="">-- Semua Status --</option>
-              <option value="DO">Drop Out (DO)</option>
-              <option value="LTM">Lulus Tidak Melanjutkan (LTM)</option>
-            </select>
-          </div>
+              {/* Filter 6: Jenis Kelamin */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wide">
+                  Jenis Kelamin (Gender)
+                </label>
+                <select
+                  value={selectedGender}
+                  onChange={(e) => {
+                    setSelectedGender(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full px-3.5 py-2.5 bg-white text-xs font-bold text-slate-700 rounded-xl border border-slate-200 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all cursor-pointer shadow-2xs"
+                >
+                  <option value="">Semua Jenis Kelamin</option>
+                  <option value="L">Laki-laki (L)</option>
+                  <option value="P">Perempuan (P)</option>
+                </select>
+              </div>
 
-          {/* Filter 5: Status Penanganan */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wide flex items-center gap-1">
-              <CheckSquare size={12} className="text-emerald-600" /> 5. Penanganan
-            </label>
-            <select
-              value={selectedPenanganan}
-              onChange={(e) => {
-                setSelectedPenanganan(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full px-3 py-2.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white text-xs font-bold text-slate-700 rounded-xl border border-slate-200 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all cursor-pointer"
-            >
-              <option value="">-- Semua Penanganan --</option>
-              <option value="sudah">Sudah Ditindaklanjuti</option>
-              <option value="belum">Belum Ditindaklanjuti</option>
-            </select>
-          </div>
+              {/* Filter 4: Status Kategori ATS */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wide">
+                  Penyebab Tidak Sekolah (Kategori ATS)
+                </label>
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => {
+                    setSelectedStatus(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full px-3.5 py-2.5 bg-white text-xs font-bold text-slate-700 rounded-xl border border-slate-200 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all cursor-pointer shadow-2xs"
+                >
+                  <option value="">Semua Kategori Masalah</option>
+                  <option value="DO">Drop Out (DO)</option>
+                  <option value="LTM">Lulus Tidak Melanjutkan (LTM)</option>
+                </select>
+              </div>
 
-          {/* Filter 6: Jenis Kelamin */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wide flex items-center gap-1">
-              <Users size={12} className="text-amber-500" /> 6. Gender
-            </label>
-            <select
-              value={selectedGender}
-              onChange={(e) => {
-                setSelectedGender(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full px-3 py-2.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white text-xs font-bold text-slate-700 rounded-xl border border-slate-200 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all cursor-pointer"
-            >
-              <option value="">-- Semua Gender --</option>
-              <option value="L">Laki-laki</option>
-              <option value="P">Perempuan</option>
-            </select>
+              {/* Filter 5: Status Penanganan */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wide">
+                  Status Tindak Lanjut Petugas
+                </label>
+                <select
+                  value={selectedPenanganan}
+                  onChange={(e) => {
+                    setSelectedPenanganan(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full px-3.5 py-2.5 bg-white text-xs font-bold text-slate-700 rounded-xl border border-slate-200 focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 outline-none transition-all cursor-pointer shadow-2xs"
+                >
+                  <option value="">Semua Status Tindak Lanjut</option>
+                  <option value="sudah">Sudah Ditindaklanjuti</option>
+                  <option value="belum">Belum Ditindaklanjuti</option>
+                </select>
+              </div>
+            </div>
           </div>
-
         </div>
       </div>
 
@@ -852,6 +882,10 @@ export default function FilteredExportView({ onNavigateToDashboard }) {
                     <span className="text-blue-700">Laki-laki: {analyticsData.maleCount} ({analyticsData.malePct}%)</span>
                     <span className="text-pink-600">Perempuan: {analyticsData.femaleCount} ({analyticsData.femalePct}%)</span>
                   </div>
+                  <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden flex">
+                    <div className="bg-blue-500 h-full" style={{ width: `${analyticsData.maleCount}%` }}></div>
+                    <div className="bg-pink-500 h-full" style={{ width: `${analyticsData.femaleCount}%` }}></div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -877,35 +911,68 @@ export default function FilteredExportView({ onNavigateToDashboard }) {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* Tombol Cetak / PDF */}
+          <div className="relative">
+            {/* Tombol Unduh Utama Terpadu */}
             <button
-              onClick={handleExportPdf}
+              type="button"
+              onClick={() => setIsDownloadOpen(!isDownloadOpen)}
               disabled={selectedFilteredRows.length === 0}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold rounded-xl transition-all cursor-pointer disabled:opacity-50 shadow-2xs"
-              title="Cetak atau simpan laporan resmi dalam format PDF"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 text-white text-xs font-extrabold rounded-xl transition-all shadow-md shadow-blue-700/10 cursor-pointer disabled:opacity-50"
             >
-              <Printer size={15} /> Cetak / Simpan PDF
+              <Download size={15} />
+              <span>Unduh Rekapan Laporan ({selectedFilteredRows.length.toLocaleString('id-ID')})</span>
+              <span className="text-[10px] ml-0.5 opacity-80">▼</span>
             </button>
 
-            {/* Tombol Unduh Excel Utama */}
-            <button
-              onClick={handleExportExcel}
-              disabled={selectedFilteredRows.length === 0 || exporting}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white text-xs font-extrabold rounded-xl transition-all shadow-md shadow-emerald-700/20 cursor-pointer disabled:opacity-50"
-            >
-              {exporting ? (
-                <>
-                  <RefreshCw size={14} className="animate-spin" />
-                  Mengekspor...
-                </>
-              ) : (
-                <>
-                  <Download size={15} />
-                  Unduh Rekapan Excel ({selectedFilteredRows.length.toLocaleString('id-ID')} Baris)
-                </>
-              )}
-            </button>
+            {isDownloadOpen && (
+              <>
+                {/* Overlay transparan untuk menutup dropdown saat klik luar */}
+                <div className="fixed inset-0 z-10" onClick={() => setIsDownloadOpen(false)}></div>
+                
+                <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200/80 rounded-2xl shadow-xl py-2.5 z-20 animate-fadeIn">
+                  <div className="px-4 py-1.5 border-b border-slate-100 mb-2">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Pilih Format Berkas</span>
+                  </div>
+                  
+                  {/* Pilihan 1: Excel */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleExportExcel();
+                      setIsDownloadOpen(false);
+                    }}
+                    disabled={exporting}
+                    className="w-full px-4 py-2.5 text-left hover:bg-emerald-50 text-slate-700 hover:text-slate-900 transition-colors flex items-center gap-2.5 text-xs font-bold disabled:opacity-50 cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-100 flex-shrink-0">
+                      <FileSpreadsheet size={16} />
+                    </div>
+                    <div>
+                      <span className="block text-emerald-800 font-extrabold">Spreadsheet Excel (.xlsx)</span>
+                      <span className="text-[9px] text-emerald-600/70 block font-bold mt-0.5">Format data rekap tabel</span>
+                    </div>
+                  </button>
+
+                  {/* Pilihan 2: PDF */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleExportPdf();
+                      setIsDownloadOpen(false);
+                    }}
+                    className="w-full px-4 py-2.5 text-left hover:bg-red-50 text-slate-700 hover:text-slate-900 transition-colors flex items-center gap-2.5 text-xs font-bold cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center border border-red-100 flex-shrink-0">
+                      <Printer size={16} />
+                    </div>
+                    <div>
+                      <span className="block text-red-700 font-extrabold">Dokumen PDF (.pdf)</span>
+                      <span className="text-[9px] text-red-600/70 block font-bold mt-0.5">Laporan cetak resmi Pemprov</span>
+                    </div>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
