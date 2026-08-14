@@ -195,14 +195,6 @@ export default function AtsDashboard() {
                 Rekapan & Export Terfilter
               </button>
             </nav>
-
-            <button
-              onClick={() => { fetchStudents(activeTab, currentPage, filters); fetchGlobalMetrics(); fetchHistories(); }}
-              title="Segarkan Data"
-              className="p-2 text-slate-400 hover:text-blue-700 hover:bg-blue-50 rounded-xl transition-all cursor-pointer border border-transparent hover:border-blue-100"
-            >
-              <RefreshCw size={16} />
-            </button>
           </div>
 
         </div>

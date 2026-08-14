@@ -32,6 +32,51 @@ import {
 import * as XLSX from 'xlsx';
 import { getSchoolName, detectJenjang } from '../utils/schoolHelper';
 import { getStudentsAPI } from '../services/api';
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip as ChartTooltip,
+  Legend as ChartLegend
+} from 'chart.js';
+import { Doughnut } from 'react-chartjs-2';
+
+ChartJS.register(ArcElement, ChartTooltip, ChartLegend);
+
+const defaultDonutOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      position: 'bottom',
+      labels: {
+        font: {
+          size: 11,
+          weight: '700',
+          family: 'Inter, system-ui, sans-serif'
+        },
+        padding: 12,
+        usePointStyle: true,
+        pointStyle: 'circle'
+      }
+    },
+    tooltip: {
+      backgroundColor: '#0F172A',
+      titleFont: { size: 12, weight: 'bold' },
+      bodyFont: { size: 12 },
+      padding: 10,
+      cornerRadius: 10,
+      callbacks: {
+        label: function(context) {
+          const val = context.raw || 0;
+          const total = context.dataset.data.reduce((a, b) => a + b, 0);
+          const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+          return ` ${context.label}: ${val.toLocaleString('id-ID')} anak (${pct}%)`;
+        }
+      }
+    }
+  },
+  cutout: '62%'
+};
 
 export default function FilteredExportView({ onNavigateToDashboard }) {
   // State Data ATS dari Database
@@ -66,7 +111,11 @@ export default function FilteredExportView({ onNavigateToDashboard }) {
     try {
       // Ambil seluruh data ATS dari backend (tanpa paginasi ketat)
       const res = await getStudentsAPI({ per_page: 5000 });
-      const rawList = res.data || [];
+      const rawList = res?.data || [];
+
+      if (!Array.isArray(rawList)) {
+        throw new Error(rawList?.message || 'Format data dari server tidak valid (bukan array).');
+      }
 
       // Enrich Data dengan mapping nama sekolah dan jenjang
       const enriched = rawList.map((row, idx) => {
@@ -108,7 +157,7 @@ export default function FilteredExportView({ onNavigateToDashboard }) {
       setSelectedRowIndices(new Set(enriched.map((_, i) => i)));
     } catch (err) {
       console.error('Gagal mengambil data ATS untuk ekspor:', err);
-      setErrorMsg('Gagal memuat basis data ATS dari server. Pastikan backend aktif.');
+      setErrorMsg(`Gagal memuat basis data ATS: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -228,10 +277,22 @@ export default function FilteredExportView({ onNavigateToDashboard }) {
     const total = filteredRows.length;
     if (total === 0) return null;
 
-    // 1. Distribusi per Wilayah (Kecamatan / Kabupaten)
+    // 1. Distribusi per Wilayah secara Dinamis (Desa/Kecamatan/Kabupaten sesuai zoom filter)
     const wilayahCounts = {};
+    let labelWilayah = 'Sebaran Kabupaten se-Sulteng';
+    
     filteredRows.forEach((r) => {
-      const key = selectedKabupaten ? (r._kecamatanNorm || 'Kec. Tidak Terdata') : (r._kabupatenNorm || 'Kab. Tidak Terdata');
+      let key = '';
+      if (selectedKecamatan) {
+        key = r._desaNorm ? `Desa ${r._desaNorm}` : 'Desa Tidak Terdata';
+        labelWilayah = `Sebaran Desa di Kecamatan ${selectedKecamatan}`;
+      } else if (selectedKabupaten) {
+        key = r._kecamatanNorm ? `Kec. ${r._kecamatanNorm}` : 'Kecamatan Tidak Terdata';
+        labelWilayah = `Sebaran Kecamatan di ${selectedKabupaten}`;
+      } else {
+        key = r._kabupatenNorm ? r._kabupatenNorm : 'Kabupaten Tidak Terdata';
+        labelWilayah = 'Sebaran Kabupaten se-Sulteng';
+      }
       wilayahCounts[key] = (wilayahCounts[key] || 0) + 1;
     });
 
@@ -274,9 +335,54 @@ export default function FilteredExportView({ onNavigateToDashboard }) {
       else femaleCount++;
     });
 
+    const statusDonutData = {
+      labels: ['Putus Sekolah (DO)', 'Lulus Tidak Melanjutkan (LTM)'],
+      datasets: [
+        {
+          data: [doCount, ltmCount],
+          backgroundColor: ['#FCA5A5', '#93C5FD'],
+          hoverBackgroundColor: ['#F87171', '#60A5FA'],
+          borderWidth: 2,
+          borderColor: '#FFFFFF'
+        }
+      ]
+    };
+
+    const penangananDonutData = {
+      labels: ['Sudah Ditindaklanjuti', 'Belum Ditindaklanjuti'],
+      datasets: [
+        {
+          data: [sudahTindakCount, belumTindakCount],
+          backgroundColor: ['#86EFAC', '#DDD6FE'],
+          hoverBackgroundColor: ['#4ADE80', '#C084FC'],
+          borderWidth: 2,
+          borderColor: '#FFFFFF'
+        }
+      ]
+    };
+
+    const jenjangDonutData = {
+      labels: ['SD / MI', 'SMP / MTs', 'SMA / SMK', 'PKBM / Lainnya'],
+      datasets: [
+        {
+          data: [
+            jenjangCounts['SD / MI'],
+            jenjangCounts['SMP / MTs'],
+            jenjangCounts['SMA / SMK'],
+            jenjangCounts['PKBM / Kesetaraan'] + jenjangCounts['Lainnya']
+          ],
+          backgroundColor: ['#A7F3D0', '#BFDBFE', '#FBCFE8', '#FDE047'],
+          hoverBackgroundColor: ['#6EE7B7', '#93C5FD', '#F9A8D4', '#FCD34D'],
+          borderWidth: 2,
+          borderColor: '#FFFFFF'
+        }
+      ]
+    };
+
     return {
       total,
       sortedWilayah,
+      labelWilayah,
       jenjangCounts,
       doCount,
       ltmCount,
@@ -289,9 +395,12 @@ export default function FilteredExportView({ onNavigateToDashboard }) {
       maleCount,
       femaleCount,
       malePct: ((maleCount / total) * 100).toFixed(1),
-      femalePct: ((femaleCount / total) * 100).toFixed(1)
+      femalePct: ((femaleCount / total) * 100).toFixed(1),
+      statusDonutData,
+      penangananDonutData,
+      jenjangDonutData
     };
-  }, [filteredRows, selectedKabupaten]);
+  }, [filteredRows, selectedKabupaten, selectedKecamatan]);
 
   // =========================================================================
   // 4. CHECKBOX SELEKSI
@@ -660,193 +769,86 @@ export default function FilteredExportView({ onNavigateToDashboard }) {
       </div>
 
       {/* ===================================================================== */}
-      {/* 2. VISUALISASI GRAFIK DINAMIS (DYNAMIC VISUAL ANALYTICS) */}
+      {/* 2. VISUALISASI GRAFIK DONUT DINAMIS (DYNAMIC DONUT ANALYTICS) */}
       {/* ===================================================================== */}
       {analyticsData && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-              <BarChart3 size={18} className="text-blue-700" />
-              2. Ringkasan Grafik Sebaran Data Rekapan (Real-Time)
+            <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+              <PieChart size={18} className="text-blue-700" />
+              Grafik Ringkasan Rekapan
             </h3>
-            <span className="text-xs font-bold text-slate-500">
-              Total Lolos Filter: <strong className="text-blue-700">{analyticsData.total.toLocaleString('id-ID')} Siswa</strong>
-            </span>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* 3 Donut Charts Resmi Berdampingan */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
-            {/* Grafik 1: Sebaran Wilayah */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
-                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                    <MapPin size={14} className="text-blue-600" />
-                    Sebaran {selectedKabupaten ? `Kecamatan di ${selectedKabupaten}` : 'Kabupaten Terbanyak'}
-                  </span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
-                    {analyticsData.sortedWilayah.length} Wilayah
-                  </span>
-                </div>
+            {/* Donut Chart 1: Status ATS (DO vs LTM) */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between items-center text-center">
+              <div className="w-full flex items-center justify-between border-b border-slate-100 pb-3 mb-2">
+                <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                  <ShieldAlert size={15} className="text-red-500" />
+                  Kategori Masalah ATS
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-100">
+                  Status
+                </span>
+              </div>
+              
+              <div className="relative w-full h-[180px] my-2">
+                <Doughnut data={analyticsData.statusDonutData} options={defaultDonutOptions} />
+              </div>
 
-                <div className="space-y-3 max-h-[220px] overflow-y-auto pr-1">
-                  {analyticsData.sortedWilayah.slice(0, 6).map((item, idx) => (
-                    <div key={idx} className="space-y-1">
-                      <div className="flex items-center justify-between text-xs font-bold">
-                        <span className="text-slate-700 truncate max-w-[160px]">{item.name}</span>
-                        <span className="text-slate-500 font-mono">{item.count} <span className="text-[10px] text-slate-400">({item.pct}%)</span></span>
-                      </div>
-                      <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                        <div 
-                          className="bg-blue-600 h-full rounded-full transition-all duration-500"
-                          style={{ width: `${Math.max(item.pct, 4)}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              <div className="w-full pt-3 border-t border-slate-100 flex items-center justify-around text-xs font-bold">
+                <span className="text-red-500">DO: {analyticsData.doCount} ({analyticsData.doPct}%)</span>
+                <span className="text-blue-500">LTM: {analyticsData.ltmCount} ({analyticsData.ltmPct}%)</span>
               </div>
             </div>
 
-            {/* Grafik 2: Komposisi Jenjang */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
-                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                    <GraduationCap size={14} className="text-emerald-600" />
-                    Komposisi Jenjang Pendidikan
-                  </span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
-                    Proporsi
-                  </span>
-                </div>
+            {/* Donut Chart 2: Status Penanganan */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between items-center text-center">
+              <div className="w-full flex items-center justify-between border-b border-slate-100 pb-3 mb-2">
+                <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                  <CheckSquare size={15} className="text-emerald-600" />
+                  Progress Kunjungan Lapangan
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                  Tindak Lanjut
+                </span>
+              </div>
 
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="p-3 bg-emerald-50/60 rounded-2xl border border-emerald-100">
-                    <span className="text-[10px] font-bold text-emerald-800 uppercase block">SD / MI</span>
-                    <p className="text-lg font-extrabold text-emerald-950 mt-0.5">
-                      {analyticsData.jenjangCounts['SD / MI']}
-                    </p>
-                    <span className="text-[10px] text-emerald-700 font-bold">
-                      {((analyticsData.jenjangCounts['SD / MI'] / analyticsData.total) * 100).toFixed(1)}%
-                    </span>
-                  </div>
+              <div className="relative w-full h-[180px] my-2">
+                <Doughnut data={analyticsData.penangananDonutData} options={defaultDonutOptions} />
+              </div>
 
-                  <div className="p-3 bg-blue-50/60 rounded-2xl border border-blue-100">
-                    <span className="text-[10px] font-bold text-blue-800 uppercase block">SMP / MTs</span>
-                    <p className="text-lg font-extrabold text-blue-950 mt-0.5">
-                      {analyticsData.jenjangCounts['SMP / MTs']}
-                    </p>
-                    <span className="text-[10px] text-blue-700 font-bold">
-                      {((analyticsData.jenjangCounts['SMP / MTs'] / analyticsData.total) * 100).toFixed(1)}%
-                    </span>
-                  </div>
-
-                  <div className="p-3 bg-indigo-50/60 rounded-2xl border border-indigo-100">
-                    <span className="text-[10px] font-bold text-indigo-800 uppercase block">SMA / SMK</span>
-                    <p className="text-lg font-extrabold text-indigo-950 mt-0.5">
-                      {analyticsData.jenjangCounts['SMA / SMK']}
-                    </p>
-                    <span className="text-[10px] text-indigo-700 font-bold">
-                      {((analyticsData.jenjangCounts['SMA / SMK'] / analyticsData.total) * 100).toFixed(1)}%
-                    </span>
-                  </div>
-
-                  <div className="p-3 bg-amber-50/60 rounded-2xl border border-amber-100">
-                    <span className="text-[10px] font-bold text-amber-800 uppercase block">PKBM / Lainnya</span>
-                    <p className="text-lg font-extrabold text-amber-950 mt-0.5">
-                      {analyticsData.jenjangCounts['PKBM / Kesetaraan'] + analyticsData.jenjangCounts['Lainnya']}
-                    </p>
-                    <span className="text-[10px] text-amber-700 font-bold">
-                      {(((analyticsData.jenjangCounts['PKBM / Kesetaraan'] + analyticsData.jenjangCounts['Lainnya']) / analyticsData.total) * 100).toFixed(1)}%
-                    </span>
-                  </div>
-                </div>
-
-                <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden flex">
-                  <div 
-                    title="SD / MI"
-                    className="bg-emerald-500 h-full"
-                    style={{ width: `${(analyticsData.jenjangCounts['SD / MI'] / analyticsData.total) * 100}%` }}
-                  ></div>
-                  <div 
-                    title="SMP / MTs"
-                    className="bg-blue-600 h-full"
-                    style={{ width: `${(analyticsData.jenjangCounts['SMP / MTs'] / analyticsData.total) * 100}%` }}
-                  ></div>
-                  <div 
-                    title="SMA / SMK"
-                    className="bg-indigo-600 h-full"
-                    style={{ width: `${(analyticsData.jenjangCounts['SMA / SMK'] / analyticsData.total) * 100}%` }}
-                  ></div>
-                  <div 
-                    title="PKBM / Lainnya"
-                    className="bg-amber-500 h-full"
-                    style={{ width: `${((analyticsData.jenjangCounts['PKBM / Kesetaraan'] + analyticsData.jenjangCounts['Lainnya']) / analyticsData.total) * 100}%` }}
-                  ></div>
-                </div>
+              <div className="w-full pt-3 border-t border-slate-100 flex items-center justify-around text-xs font-bold">
+                <span className="text-emerald-600">Sudah: {analyticsData.sudahTindakCount} ({analyticsData.sudahTindakPct}%)</span>
+                <span className="text-purple-500">Belum: {analyticsData.belumTindakCount} ({analyticsData.belumTindakPct}%)</span>
               </div>
             </div>
 
-            {/* Grafik 3: Status DO/LTM & Penanganan */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
-                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                    <PieChart size={14} className="text-red-500" />
-                    Kategori Status & Penanganan
-                  </span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
-                    Rasio Intervensi
-                  </span>
-                </div>
+            {/* Donut Chart 3: Jenjang Sekolah Asal */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between items-center text-center">
+              <div className="w-full flex items-center justify-between border-b border-slate-100 pb-3 mb-2">
+                <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                  <GraduationCap size={15} className="text-indigo-600" />
+                  Jenjang Pendidikan Asal
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
+                  Sekolah
+                </span>
+              </div>
 
-                <div className="space-y-4">
-                  {/* Status Penanganan */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs font-bold">
-                      <span className="text-emerald-700 flex items-center gap-1">
-                        <CheckCircle2 size={12} /> Sudah Ditindak: {analyticsData.sudahTindakCount} ({analyticsData.sudahTindakPct}%)
-                      </span>
-                      <span className="text-amber-700 flex items-center gap-1">
-                        <Clock size={12} /> Belum: {analyticsData.belumTindakCount} ({analyticsData.belumTindakPct}%)
-                      </span>
-                    </div>
-                    <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden flex">
-                      <div className="bg-emerald-500 h-full" style={{ width: `${analyticsData.sudahTindakPct}%` }}></div>
-                      <div className="bg-amber-400 h-full" style={{ width: `${analyticsData.belumTindakPct}%` }}></div>
-                    </div>
-                  </div>
+              <div className="relative w-full h-[180px] my-2">
+                <Doughnut data={analyticsData.jenjangDonutData} options={defaultDonutOptions} />
+              </div>
 
-                  {/* Komparasi DO vs LTM */}
-                  <div className="space-y-1.5 pt-2 border-t border-slate-100">
-                    <div className="flex items-center justify-between text-xs font-bold">
-                      <span className="text-red-600">
-                        Drop Out: {analyticsData.doCount} ({analyticsData.doPct}%)
-                      </span>
-                      <span className="text-orange-600">
-                        LTM: {analyticsData.ltmCount} ({analyticsData.ltmPct}%)
-                      </span>
-                    </div>
-                    <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden flex">
-                      <div className="bg-red-500 h-full" style={{ width: `${analyticsData.doPct}%` }}></div>
-                      <div className="bg-orange-500 h-full" style={{ width: `${analyticsData.ltmPct}%` }}></div>
-                    </div>
-                  </div>
-
-                  {/* Gender */}
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-bold">
-                    <span className="text-blue-700">Laki-laki: {analyticsData.maleCount} ({analyticsData.malePct}%)</span>
-                    <span className="text-pink-600">Perempuan: {analyticsData.femaleCount} ({analyticsData.femalePct}%)</span>
-                  </div>
-                  <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden flex">
-                    <div className="bg-blue-500 h-full" style={{ width: `${analyticsData.maleCount}%` }}></div>
-                    <div className="bg-pink-500 h-full" style={{ width: `${analyticsData.femaleCount}%` }}></div>
-                  </div>
-                </div>
+              <div className="w-full pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] font-bold px-1 text-slate-600">
+                <span>SD: {analyticsData.jenjangCounts['SD / MI']}</span>
+                <span>SMP: {analyticsData.jenjangCounts['SMP / MTs']}</span>
+                <span>SMA: {analyticsData.jenjangCounts['SMA / SMK']}</span>
               </div>
             </div>
-
           </div>
         </div>
       )}
@@ -861,7 +863,7 @@ export default function FilteredExportView({ onNavigateToDashboard }) {
           <div>
             <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
               <FileSpreadsheet size={18} className="text-blue-700" />
-              3. Pratinjau Tabel & Opsi Pengunduhan Rekapan
+              Pratinjau Tabel & Opsi Pengunduhan Rekapan
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
               Ditemukan <strong className="text-blue-700">{filteredRows.length.toLocaleString('id-ID')}</strong> data lolos kriteria. Terpilih: <strong className="text-emerald-700">{selectedFilteredRows.length.toLocaleString('id-ID')}</strong> siswa untuk diekspor.
