@@ -589,8 +589,6 @@ export default function FilteredExportView({ onNavigateToDashboard }) {
           <Download size={200} />
         </div>
         <div className="relative z-10 max-w-3xl space-y-2">
-          <div className="flex items-center gap-2">
-          </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight font-display text-white">
             Rekapan & Ekspor Data ATS Terfilter
           </h2>
@@ -783,7 +781,11 @@ export default function FilteredExportView({ onNavigateToDashboard }) {
           {/* 3 Donut Charts Resmi Berdampingan */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
-            {/* Donut Chart 1: Status ATS (DO vs LTM) */}
+            {/* Donut Chart 1:
+          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight font-display">
+            Impor Data Anak Tidak Sekolah (ATS)
+          </h2>
+          <p cla Status ATS (DO vs LTM) */}
             <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between items-center text-center">
               <div className="w-full flex items-center justify-between border-b border-slate-100 pb-3 mb-2">
                 <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
@@ -795,7 +797,7 @@ export default function FilteredExportView({ onNavigateToDashboard }) {
                 </span>
               </div>
               
-              <div className="relative w-full h-[180px] my-2">
+              <div className="relative w-full h-[240px] my-2">
                 <Doughnut data={analyticsData.statusDonutData} options={defaultDonutOptions} />
               </div>
 
@@ -817,7 +819,7 @@ export default function FilteredExportView({ onNavigateToDashboard }) {
                 </span>
               </div>
 
-              <div className="relative w-full h-[180px] my-2">
+              <div className="relative w-full h-[240px] my-2">
                 <Doughnut data={analyticsData.penangananDonutData} options={defaultDonutOptions} />
               </div>
 
@@ -839,7 +841,7 @@ export default function FilteredExportView({ onNavigateToDashboard }) {
                 </span>
               </div>
 
-              <div className="relative w-full h-[180px] my-2">
+              <div className="relative w-full h-[240px] my-2">
                 <Doughnut data={analyticsData.jenjangDonutData} options={defaultDonutOptions} />
               </div>
 

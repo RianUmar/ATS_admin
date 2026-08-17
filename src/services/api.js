@@ -233,8 +233,20 @@ export const importStudentsAPI = (studentsList, fileDetails) => {
   return Promise.resolve({ data: mockDb.importStudents(studentsList, fileDetails) });
 };
 
-export const getImportHistoryAPI = () => {
-  return Promise.resolve({ data: mockDb.getImportHistory() });
+export const getImportHistoryAPI = async (params = {}) => {
+  try {
+    const response = await api.get('/ats/riwayat-import', { params });
+    const rawData = response.data?.data;
+    if (rawData && rawData.data && Array.isArray(rawData.data)) {
+      return { data: rawData.data, meta: rawData };
+    } else if (Array.isArray(rawData)) {
+      return { data: rawData, meta: null };
+    }
+    return { data: response.data || [], meta: null };
+  } catch (error) {
+    console.warn('[API fallback] Gagal menghubungi backend API /ats/riwayat-import:', error.message);
+    return { data: mockDb.getImportHistory(), meta: null };
+  }
 };
 
 // Aliases for compatibility
