@@ -261,7 +261,7 @@ export default function AdminAtsTable({
       )}
 
       {/* Tabel Data ATS */}
-      <div className="w-full overflow-x-auto relative min-h-[300px]">
+      <div className="w-full overflow-auto max-h-[600px] relative min-h-[300px]">
         {loading && (
           <div className="absolute inset-0 bg-white/70 backdrop-blur-[1px] z-20 flex flex-col items-center justify-center gap-2">
             <div className="w-8 h-8 border-3 border-blue-700 border-t-transparent rounded-full animate-spin"></div>
@@ -270,15 +270,15 @@ export default function AdminAtsTable({
         )}
 
         <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="border-b-2 border-slate-200/80 bg-slate-100/90 text-slate-700 shadow-2xs">
-              <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-700">Nama & NISN</th>
-              <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-700">NIK (Utuh)</th>
-              <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-700">Jenis Kelamin</th>
-              <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-700">Domisili Wilayah</th>
-              <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-700 text-center">Status ATS</th>
-              <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-700 text-center">Tindak Lanjut</th>
-              <th className="px-6 py-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-700 text-center">Aksi</th>
+          <thead className="sticky top-0 z-10 bg-slate-100 shadow-2xs">
+            <tr className="border-b-2 border-slate-200/80 bg-slate-100 text-slate-700">
+              <th className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur-xs px-6 py-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-700 border-b border-slate-200">Nama & NISN</th>
+              <th className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur-xs px-6 py-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-700 border-b border-slate-200">NIK (Utuh)</th>
+              <th className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur-xs px-6 py-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-700 border-b border-slate-200">Jenis Kelamin</th>
+              <th className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur-xs px-6 py-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-700 border-b border-slate-200">Domisili Wilayah</th>
+              <th className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur-xs px-6 py-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-700 text-center border-b border-slate-200">Status ATS</th>
+              <th className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur-xs px-6 py-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-700 text-center border-b border-slate-200">Tindak Lanjut</th>
+              <th className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur-xs px-6 py-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-700 text-center border-b border-slate-200">Aksi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">

@@ -378,7 +378,7 @@ export default function AtsDashboard() {
               </div>
 
               <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-100">
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between border-b border-slate-200 mb-6 pb-2 gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 mb-6 pb-2 gap-4">
                   <div className="flex overflow-x-auto whitespace-nowrap scrollbar-none gap-3">
                     <button
                       onClick={() => setActiveTab('belum')}
@@ -413,105 +413,21 @@ export default function AtsDashboard() {
                         {summaryCounts.sudahCount.toLocaleString('id-ID')}
                       </span>
                     </button>
-
-                    <button
-                      onClick={() => setActiveTab('riwayat')}
-                      className={`flex items-center gap-2.5 px-6 py-3.5 font-extrabold text-sm transition-all border-b-2 cursor-pointer focus:outline-none ${
-                        activeTab === 'riwayat' 
-                          ? 'border-indigo-600 text-indigo-600' 
-                          : 'border-transparent text-slate-400 hover:text-slate-600'
-                      }`}
-                    >
-                      <History size={17} />
-                      Riwayat Import & Log
-                      <span className={`text-xs px-2.5 py-0.5 rounded-full font-extrabold ml-1 ${
-                        activeTab === 'riwayat' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-slate-100 text-slate-500'
-                      }`}>
-                        {importHistory.length}
-                      </span>
-                    </button>
                   </div>
                 </div>
 
                 <div>
-                  {activeTab === 'belum' || activeTab === 'sudah' ? (
-                    <AdminAtsTable 
-                      data={students} 
-                      loading={loading}
-                      onDetailClick={handleAdminDetailClick} 
-                      pagination={paginationMeta}
-                      onPageChange={handlePageChange}
-                      onFilterChange={handleFilterChange}
-                    />
-                  ) : (
-                    <div className="space-y-6">
-                      <div className="w-full overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                          <thead>
-                            <tr className="border-b border-slate-150 bg-slate-50/50">
-                              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-400">Tanggal & Waktu</th>
-                              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-400">Periode Data</th>
-                              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-400">Nama Berkas</th>
-                              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-400 text-center">Data Sukses</th>
-                              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-400 text-center">Data Duplikat/Skip</th>
-                              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-400 text-center">Status</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            {importHistory.length > 0 ? (
-                              importHistory.map((item, index) => (
-                                <tr 
-                                  key={item.id || index} 
-                                  className={`hover:bg-slate-100/30 transition-colors ${
-                                    index % 2 === 0 ? 'bg-slate-50/50' : 'bg-white'
-                                  }`}
-                                >
-                                  <td className="px-6 py-4 text-xs text-slate-600 font-semibold">
-                                    {new Date(item.tanggalImport).toLocaleString('id-ID', {
-                                      day: '2-digit',
-                                      month: 'long',
-                                      year: 'numeric',
-                                      hour: '2-digit',
-                                      minute: '2-digit'
-                                    })}
-                                  </td>
-                                  <td className="px-6 py-4 text-xs font-bold text-slate-800">Periode #{item.periode}</td>
-                                  <td className="px-6 py-4 text-xs font-mono text-slate-600 max-w-[220px] truncate" title={item.namaFile}>
-                                    {item.namaFile}
-                                  </td>
-                                  <td className="px-6 py-4 text-xs text-center">
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
-                                      +{item.importedCount} Data
-                                    </span>
-                                  </td>
-                                  <td className="px-6 py-4 text-xs text-center">
-                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${
-                                      item.skippedCount > 0 ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-slate-50 text-slate-400 border-slate-100'
-                                    }`}>
-                                      {item.skippedCount} Dilewati
-                                    </span>
-                                  </td>
-                                  <td className="px-6 py-4 text-xs text-center">
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-100">
-                                      Selesai
-                                    </span>
-                                  </td>
-                                </tr>
-                              ))
-                            ) : (
-                              <tr>
-                                <td colSpan="6" className="px-6 py-12 text-center text-slate-400 text-xs">
-                                  Belum ada riwayat pengimporan berkas.
-                                </td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
+                  <AdminAtsTable 
+                    data={students} 
+                    loading={loading}
+                    onDetailClick={handleAdminDetailClick} 
+                    pagination={paginationMeta}
+                    onPageChange={handlePageChange}
+                    onFilterChange={handleFilterChange}
+                  />
                 </div>
               </div>
+
             </div>
           )}
         </main>

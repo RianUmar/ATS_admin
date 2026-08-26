@@ -42,6 +42,24 @@ import { Doughnut } from 'react-chartjs-2';
 
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend);
 
+// Helper fungsi format persentase presisi pintar (mencegah pembulatan 0.0% / 100.0% jika data > 0 atau < total)
+const formatPct = (val, total) => {
+  if (!total || total === 0 || !val || val === 0) return '0.0';
+  const rawPct = (val / total) * 100;
+  
+  if (rawPct > 0 && rawPct < 0.05) {
+    const formatted = rawPct.toFixed(2);
+    return formatted === '0.00' ? '< 0.01' : formatted;
+  }
+  
+  if (rawPct > 99.95 && rawPct < 100 && val < total) {
+    const formatted = rawPct.toFixed(2);
+    return formatted === '100.00' ? '> 99.99' : formatted;
+  }
+
+  return rawPct.toFixed(1);
+};
+
 const defaultDonutOptions = {
   responsive: true,
   maintainAspectRatio: false,
@@ -69,7 +87,7 @@ const defaultDonutOptions = {
         label: function(context) {
           const val = context.raw || 0;
           const total = context.dataset.data.reduce((a, b) => a + b, 0);
-          const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+          const pct = formatPct(val, total);
           return ` ${context.label}: ${val.toLocaleString('id-ID')} anak (${pct}%)`;
         }
       }
@@ -297,7 +315,7 @@ export default function FilteredExportView({ onNavigateToDashboard }) {
     });
 
     const sortedWilayah = Object.entries(wilayahCounts)
-      .map(([name, count]) => ({ name, count, pct: ((count / total) * 100).toFixed(1) }))
+      .map(([name, count]) => ({ name, count, pct: formatPct(count, total) }))
       .sort((a, b) => b.count - a.count);
 
     // 2. Komposisi Jenjang
@@ -386,16 +404,16 @@ export default function FilteredExportView({ onNavigateToDashboard }) {
       jenjangCounts,
       doCount,
       ltmCount,
-      doPct: ((doCount / total) * 100).toFixed(1),
-      ltmPct: ((ltmCount / total) * 100).toFixed(1),
+      doPct: formatPct(doCount, total),
+      ltmPct: formatPct(ltmCount, total),
       sudahTindakCount,
       belumTindakCount,
-      sudahTindakPct: ((sudahTindakCount / total) * 100).toFixed(1),
-      belumTindakPct: ((belumTindakCount / total) * 100).toFixed(1),
+      sudahTindakPct: formatPct(sudahTindakCount, total),
+      belumTindakPct: formatPct(belumTindakCount, total),
       maleCount,
       femaleCount,
-      malePct: ((maleCount / total) * 100).toFixed(1),
-      femalePct: ((femaleCount / total) * 100).toFixed(1),
+      malePct: formatPct(maleCount, total),
+      femalePct: formatPct(femaleCount, total),
       statusDonutData,
       penangananDonutData,
       jenjangDonutData
