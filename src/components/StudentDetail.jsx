@@ -836,12 +836,21 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
               </MapContainer>
             </MapErrorBoundary>
             
-            <div className="absolute top-3 right-3 z-10 bg-white/95 backdrop-blur-sm px-3.5 py-1.5 rounded-full text-[10px] font-bold border border-blue-100 shadow-sm uppercase tracking-wide flex items-center gap-1.5">
+            <div className="absolute top-3 right-3 z-[1000] bg-white/95 backdrop-blur-sm px-3.5 py-1.5 rounded-full text-[10px] font-bold border border-blue-100 shadow-sm uppercase tracking-wide flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               <span className="text-blue-800">
                 Koordinat Presisi ({rawLat.toFixed(4)}, {rawLng.toFixed(4)})
               </span>
             </div>
+            
+            <a 
+              href={`https://www.google.com/maps/search/?api=1&query=${rawLat},${rawLng}`}
+              target="_blank"
+              rel="noreferrer"
+              className="absolute bottom-4 right-4 z-[1000] bg-blue-700 hover:bg-blue-800 text-white px-4 py-2.5 rounded-xl shadow-lg border border-blue-600 flex items-center gap-2 text-xs font-bold transition-all cursor-pointer"
+            >
+              <MapPin size={16} /> Buka di Google Maps
+            </a>
           </div>
         ) : (
           <div className="min-h-[380px] h-full rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50/70 p-8 flex flex-col items-center justify-center text-center">

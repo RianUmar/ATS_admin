@@ -166,22 +166,26 @@ export default function AtsDashboard() {
         ></div>
       )}
 
-      <aside className={`fixed inset-y-0 left-0 w-64 bg-white border-r border-slate-200/80 flex flex-col justify-between z-50 transform transition-transform duration-300 lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:flex-shrink-0 ${
+      <aside className={`fixed inset-y-0 left-0 w-64 bg-white/60 backdrop-blur-2xl border-r border-white/50 shadow-[4px_0_30px_rgba(0,0,0,0.03)] flex flex-col justify-between z-50 transform transition-transform duration-300 lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:flex-shrink-0 ${
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         {/* Top: Logo & App Title */}
-        <div className="space-y-6">
-          <div className="h-20 px-6 border-b border-slate-100 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              {/* Logo Container - Siap diisi file logo gambar pengguna */}
-              <div className="w-10 h-10 rounded-2xl bg-blue-700 text-white flex items-center justify-center font-extrabold text-xs shadow-md shadow-blue-700/15 border border-blue-600 flex-shrink-0">
-                LOGO
+        <div className="space-y-6 relative">
+          
+          <div className="h-24 px-6 border-b border-white/50 flex items-center justify-between gap-3 relative overflow-hidden">
+            {/* Subtle glass glow behind logo */}
+            <div className="absolute -top-10 -left-10 w-40 h-40 bg-blue-500/15 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div className="flex items-center gap-3 relative z-10">
+              {/* Logo Container */}
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-700 to-indigo-600 text-white flex items-center justify-center font-extrabold text-[10px] shadow-lg shadow-blue-700/20 border border-blue-500 flex-shrink-0 ring-4 ring-white/50">
+                ATS
               </div>
               <div className="min-w-0">
-                <h1 className="text-sm font-extrabold text-slate-900 tracking-tight truncate leading-tight font-display">
+                <h1 className="text-sm font-extrabold text-slate-800 tracking-tight truncate leading-tight font-display drop-shadow-sm">
                   ATS BERSAMA
                 </h1>
-                <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider block mt-0.5">
+                <span className="text-[10px] font-bold text-blue-600/90 uppercase tracking-wider block mt-0.5">
                   Panel Admin
                 </span>
               </div>
@@ -190,24 +194,24 @@ export default function AtsDashboard() {
             {/* Close button on mobile */}
             <button 
               onClick={() => setIsSidebarOpen(false)}
-              className="lg:hidden p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors"
+              className="lg:hidden relative z-10 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-white/80 rounded-lg cursor-pointer transition-colors shadow-sm"
             >
               <X size={16} />
             </button>
           </div>
 
           {/* Navigation Links */}
-          <nav className="px-3 space-y-1.5">
+          <nav className="px-4 space-y-2 relative z-10">
             <button
               onClick={() => {
                 setMainView('dashboard');
                 setSelectedDetailId(null);
                 setIsSidebarOpen(false);
               }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-bold transition-all duration-300 cursor-pointer ${
                 mainView === 'dashboard' && !selectedDetailId
-                  ? 'bg-blue-50 text-blue-700 shadow-2xs border border-blue-100 font-extrabold'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+                  ? 'bg-white/80 text-blue-700 shadow-md shadow-slate-200/40 border border-white font-extrabold scale-[1.02]'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-white/50'
               }`}
             >
               <Users size={17} className={mainView === 'dashboard' && !selectedDetailId ? 'text-blue-700' : 'text-slate-400'} />
@@ -220,10 +224,10 @@ export default function AtsDashboard() {
                 setSelectedDetailId(null);
                 setIsSidebarOpen(false);
               }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-bold transition-all duration-300 cursor-pointer ${
                 mainView === 'export' && !selectedDetailId
-                  ? 'bg-blue-50 text-blue-700 shadow-2xs border border-blue-100 font-extrabold'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+                  ? 'bg-white/80 text-blue-700 shadow-md shadow-slate-200/40 border border-white font-extrabold scale-[1.02]'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-white/50'
               }`}
             >
               <Download size={17} className={mainView === 'export' && !selectedDetailId ? 'text-blue-700' : 'text-slate-400'} />
@@ -236,10 +240,10 @@ export default function AtsDashboard() {
                 setSelectedDetailId(null);
                 setIsSidebarOpen(false);
               }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-bold transition-all duration-300 cursor-pointer ${
                 mainView === 'import' && !selectedDetailId
-                  ? 'bg-blue-50 text-blue-700 shadow-2xs border border-blue-100 font-extrabold'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+                  ? 'bg-white/80 text-blue-700 shadow-md shadow-slate-200/40 border border-white font-extrabold scale-[1.02]'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-white/50'
               }`}
             >
               <Upload size={17} className={mainView === 'import' && !selectedDetailId ? 'text-blue-700' : 'text-slate-400'} />
@@ -252,10 +256,10 @@ export default function AtsDashboard() {
                 setSelectedDetailId(null);
                 setIsSidebarOpen(false);
               }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-bold transition-all duration-300 cursor-pointer ${
                 mainView === 'history' && !selectedDetailId
-                  ? 'bg-blue-50 text-blue-700 shadow-2xs border border-blue-100 font-extrabold'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+                  ? 'bg-white/80 text-blue-700 shadow-md shadow-slate-200/40 border border-white font-extrabold scale-[1.02]'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-white/50'
               }`}
             >
               <History size={17} className={mainView === 'history' && !selectedDetailId ? 'text-blue-700' : 'text-slate-400'} />
@@ -313,8 +317,8 @@ export default function AtsDashboard() {
             />
           ) : (
             <div className="space-y-8 animate-fadeIn">
-              <div className="p-8 sm:p-10 bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 rounded-3xl text-white shadow-xl shadow-blue-700/10 relative overflow-hidden">
-                <div className="absolute right-0 bottom-0 opacity-10 translate-x-12 translate-y-12 scale-150 pointer-events-none">
+              <div className="p-8 sm:p-10 bg-gradient-to-r from-blue-900 via-slate-900 to-black rounded-3xl text-white shadow-xl shadow-slate-900/10 relative overflow-hidden">
+                <div className="absolute right-0 bottom-0 opacity-20 translate-x-12 translate-y-12 scale-150 pointer-events-none">
                   <Layers size={300} />
                 </div>
                 <div className="relative z-10 max-w-4xl space-y-3">

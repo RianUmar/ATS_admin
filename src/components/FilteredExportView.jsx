@@ -602,8 +602,8 @@ export default function FilteredExportView({ onNavigateToDashboard }) {
     <div className="space-y-8 animate-fadeIn">
       
       {/* Banner Header Fitur */}
-      <div className="p-6 sm:p-8 bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 rounded-3xl text-white shadow-xl shadow-blue-900/10 relative overflow-hidden">
-        <div className="absolute right-0 bottom-0 opacity-10 translate-x-12 translate-y-12 scale-150 pointer-events-none">
+      <div className="p-6 sm:p-8 bg-gradient-to-r from-blue-900 via-slate-900 to-black rounded-3xl text-white shadow-xl shadow-slate-900/10 relative overflow-hidden">
+        <div className="absolute right-0 bottom-0 opacity-20 translate-x-12 translate-y-12 scale-150 pointer-events-none">
           <Download size={200} />
         </div>
         <div className="relative z-10 max-w-3xl space-y-2">

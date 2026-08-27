@@ -100,8 +100,8 @@ export default function ImportHistoryView({ onNavigateToImport, onNavigateToDash
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* 1. Banner Header Hero */}
-      <div className="p-6 sm:p-8 bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 rounded-3xl text-white shadow-xl shadow-blue-700/10 relative overflow-hidden">
-        <div className="absolute right-0 bottom-0 opacity-10 translate-x-12 translate-y-12 scale-150 pointer-events-none">
+      <div className="p-6 sm:p-8 bg-gradient-to-r from-blue-900 via-slate-900 to-black rounded-3xl text-white shadow-xl shadow-slate-900/10 relative overflow-hidden">
+        <div className="absolute right-0 bottom-0 opacity-20 translate-x-12 translate-y-12 scale-150 pointer-events-none">
           <History size={300} />
         </div>
         <div className="relative z-10 max-w-4xl space-y-3">
