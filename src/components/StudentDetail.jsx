@@ -28,11 +28,12 @@ import {
   Gift,
   RotateCcw,
   Edit3,
-  HelpCircle
+  HelpCircle,
+  Home
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { getStudentByIdAPI, createTindakLanjutAPI, deleteTindakLanjutAPI } from '../services/api';
+import { getStudentByIdAPI, createTindakLanjutAPI, updateTindakLanjutAPI, deleteTindakLanjutAPI } from '../services/api';
 import { getSchoolName } from '../utils/schoolHelper';
 
 // Opsi Program Bantuan / Intervensi (Khusus saat anak sudah lanjut sekolah)
@@ -230,8 +231,11 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
   const [dokumenName, setDokumenName] = useState('');
   const [fotoFile, setFotoFile] = useState(null);
   const [fotoPreview, setFotoPreview] = useState('');
+  const [fotoRumahFile, setFotoRumahFile] = useState(null);
+  const [fotoRumahPreview, setFotoRumahPreview] = useState('');
   
-  // State UI
+  // State UI & Edit Mode
+  const [editingId, setEditingId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [showNewForm, setShowNewForm] = useState(false);
   const [alertMsg, setAlertMsg] = useState(null); // { type: 'success' | 'error', text: '' }
@@ -285,10 +289,14 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
           const data = response.data;
           setStudent(data);
           
-          // Cek apakah ada riwayat tindak lanjut dari relasi Laravel `tindak_lanjuts` atau legacy `tindakanLanjut`
-          const existingTindakLanjut = (data.tindak_lanjuts && data.tindak_lanjuts.length > 0)
-            ? data.tindak_lanjuts[data.tindak_lanjuts.length - 1]
-            : (data.tindakanLanjut || null);
+          // Cek apakah ada riwayat tindak lanjut dari relasi Laravel `tindak_lanjuts` / `tindakLanjuts` atau legacy `tindakanLanjut`
+          const list = (data.tindak_lanjuts && data.tindak_lanjuts.length > 0)
+            ? data.tindak_lanjuts
+            : (data.tindakLanjuts && data.tindakLanjuts.length > 0)
+            ? data.tindakLanjuts
+            : (data.tindakanLanjut ? [data.tindakanLanjut] : []);
+          
+          const existingTindakLanjut = list.length > 0 ? list[list.length - 1] : null;
 
           if (existingTindakLanjut) {
             const currentKet = existingTindakLanjut.keterangan || '';
@@ -336,6 +344,10 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
               setFotoPreview(`${backendUrl}/storage/${existingTindakLanjut.foto_dokumentasi_path}`);
             } else if (existingTindakLanjut.fotoUrl) {
               setFotoPreview(existingTindakLanjut.fotoUrl);
+            }
+            if (existingTindakLanjut.foto_rumah_path) {
+              const backendUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000';
+              setFotoRumahPreview(`${backendUrl}/storage/${existingTindakLanjut.foto_rumah_path}`);
             }
           }
         } else {
@@ -398,6 +410,30 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
     if (input) input.value = '';
   };
 
+  // Handle Foto Rumah
+  const handleFotoRumahChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        setAlertMsg({ type: 'error', text: 'Ukuran foto rumah maksimal 10 MB!' });
+        return;
+      }
+      setFotoRumahFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFotoRumahPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveFotoRumah = () => {
+    setFotoRumahFile(null);
+    setFotoRumahPreview('');
+    const input = document.getElementById('foto-rumah-upload');
+    if (input) input.value = '';
+  };
+
   // Submit Form Tindak Lanjut ke Backend
   const handleSubmitTindakLanjut = async (e) => {
     e.preventDefault();
@@ -428,9 +464,24 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
     if (fotoFile) {
       formData.append('foto_dokumentasi', fotoFile);
     }
+    if (fotoRumahFile) {
+      formData.append('foto_rumah', fotoRumahFile);
+    }
 
     try {
-      await createTindakLanjutAPI(formData);
+      if (editingId) {
+        await updateTindakLanjutAPI(editingId, formData);
+        setAlertMsg({
+          type: 'success',
+          text: 'Data tindak lanjut berhasil diperbarui / diupdate!'
+        });
+      } else {
+        await createTindakLanjutAPI(formData);
+        setAlertMsg({
+          type: 'success',
+          text: 'Data tindak lanjut berhasil disimpan ke basis data backend!'
+        });
+      }
       
       // Jika admin memasukkan program kustom baru, tambahkan ke pilihan otomatis secara instan
       if (keterangan === 'sudah lanjut sekolah' && isCustomProgram && customProgram.trim()) {
@@ -446,19 +497,16 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
         }
       }
 
-      setAlertMsg({
-        type: 'success',
-        text: 'Data tindak lanjut berhasil disimpan ke basis data backend!'
-      });
+      setEditingId(null);
+      setShowNewForm(false);
       loadDetail();
       if (onSaveSuccess) onSaveSuccess();
-      setShowNewForm(false);
     } catch (err) {
-      console.error("[StudentDetail] Gagal menyimpan tindak lanjut:", err);
+      console.error("[StudentDetail] Gagal menyimpan/mengubah tindak lanjut:", err);
       const errDetail = err.response?.data?.message || err.message || 'Terjadi kesalahan sistem.';
       setAlertMsg({
         type: 'error',
-        text: `Gagal menyimpan tindak lanjut: ${errDetail}`
+        text: `Gagal menyimpan/mengubah tindak lanjut: ${errDetail}`
       });
     } finally {
       setSubmitting(false);
@@ -496,6 +544,7 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
   };
 
   const handleResetForm = () => {
+    setEditingId(null);
     setKeterangan('');
     setProgramIntervensi('');
     setIsCustomProgram(false);
@@ -508,7 +557,73 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
     setDokumenName('');
     setFotoFile(null);
     setFotoPreview('');
+    setFotoRumahFile(null);
+    setFotoRumahPreview('');
     setAlertMsg(null);
+  };
+
+  // Handler Masuk Mode Edit untuk Data Tindak Lanjut
+  const handleStartEdit = (item) => {
+    if (!item) return;
+    setEditingId(item.id || null);
+    const currentKet = item.keterangan || '';
+    setKeterangan(currentKet);
+
+    const prog = item.program_intervensi || item.programIntervensi || '';
+    if (prog) {
+      if (PROGRAM_INTERVENSI_OPTIONS.includes(prog)) {
+        setProgramIntervensi(prog);
+        setIsCustomProgram(false);
+      } else {
+        setIsCustomProgram(true);
+        setProgramIntervensi('Lainnya...');
+        setCustomProgram(prog);
+      }
+    } else {
+      setProgramIntervensi('');
+      setIsCustomProgram(false);
+      setCustomProgram('');
+    }
+
+    const als = item.alasan || '';
+    if (als) {
+      const relevantOptions = currentKet === 'sudah lanjut sekolah' 
+        ? ALASAN_SUDAH_LANJUT_OPTIONS 
+        : ALASAN_TIDAK_LANJUT_OPTIONS;
+      if (relevantOptions.includes(als)) {
+        setSelectedAlasan(als);
+        setIsCustomAlasan(false);
+      } else {
+        setIsCustomAlasan(true);
+        setSelectedAlasan('Lainnya...');
+        setCustomAlasan(als);
+      }
+    } else {
+      setSelectedAlasan('');
+      setIsCustomAlasan(false);
+      setCustomAlasan('');
+    }
+
+    if (item.tanggal_tindak_lanjut) {
+      setTanggalTindakLanjut(item.tanggal_tindak_lanjut.split('T')[0]);
+    }
+    if (item.dokumen_pendukung_path) {
+      setDokumenName(item.dokumen_pendukung_path.split('/').pop());
+    } else if (item.dokumenName) {
+      setDokumenName(item.dokumenName);
+    }
+
+    const backendUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000';
+    if (item.foto_dokumentasi_path) {
+      setFotoPreview(`${backendUrl}/storage/${item.foto_dokumentasi_path}`);
+    } else if (item.fotoUrl) {
+      setFotoPreview(item.fotoUrl);
+    }
+    if (item.foto_rumah_path) {
+      setFotoRumahPreview(`${backendUrl}/storage/${item.foto_rumah_path}`);
+    }
+
+    setShowNewForm(true);
   };
 
   if (loading) {
@@ -558,8 +673,13 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
   const hasCoordinates = typeof rawLat === 'number' && typeof rawLng === 'number' && !isNaN(rawLat) && !isNaN(rawLng);
   const mapCenter = hasCoordinates ? [rawLat, rawLng] : null;
 
-  // Riwayat tindak lanjut
-  const tindakLanjutList = student.tindak_lanjuts || (student.tindakanLanjut ? [student.tindakanLanjut] : []);
+  // Riwayat tindak lanjut (Mendukung snake_case & camelCase relation dari Laravel)
+  const tindakLanjutList = (student.tindak_lanjuts && student.tindak_lanjuts.length > 0)
+    ? student.tindak_lanjuts
+    : (student.tindakLanjuts && student.tindakLanjuts.length > 0)
+    ? student.tindakLanjuts
+    : (student.tindakanLanjut ? [student.tindakanLanjut] : []);
+
   const isHandled = Array.isArray(tindakLanjutList) && tindakLanjutList.length > 0;
 
   return (
@@ -918,6 +1038,7 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
                 const docUrl = item.dokumen_pendukung_path ? `${backendBase}/storage/${item.dokumen_pendukung_path}` : null;
                 const docName = item.dokumen_pendukung_path ? item.dokumen_pendukung_path.split('/').pop() : (item.dokumenName || 'Berkas Dokumen');
                 const photoUrl = item.foto_dokumentasi_path ? `${backendBase}/storage/${item.foto_dokumentasi_path}` : (item.fotoUrl || null);
+                const photoRumahUrl = item.foto_rumah_path ? `${backendBase}/storage/${item.foto_rumah_path}` : null;
 
                 return (
                   <div key={item.id || idx} className="bg-slate-50/60 rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-2xs space-y-6">
@@ -965,11 +1086,11 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
 
                     </div>
 
-                    {/* Baris 2: Grid 2 Kolom (Kolom Kiri: Catatan & Dokumen | Kolom Kanan: Foto Dokumentasi) */}
+                    {/* Baris 2: Grid 2 Kolom (Kolom Kiri: Catatan & Dokumen | Kolom Kanan: Foto Dokumentasi Lapangan & Rumah) */}
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
                       
-                      {/* Kolom Kiri (7/12): Catatan Hasil & Lampiran Dokumen */}
-                      <div className="lg:col-span-7 flex flex-col justify-between gap-4">
+                      {/* Kolom Kiri (6/12): Catatan Hasil & Lampiran Dokumen */}
+                      <div className="lg:col-span-6 flex flex-col justify-between gap-4">
                         
                         {/* Box Catatan Hasil Kunjungan */}
                         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs flex-1 flex flex-col">
@@ -1028,48 +1149,82 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
 
                       </div>
 
-                      {/* Kolom Kanan (5/12): Foto Bukti Lapangan */}
-                      <div className="lg:col-span-5 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col justify-between min-h-[260px]">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mb-2.5">
-                          <ImageIcon size={13} className="text-emerald-600" /> Foto Dokumentasi Kunjungan
-                        </span>
+                      {/* Kolom Kanan (6/12): Foto Kunjungan & Foto Rumah */}
+                      <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
                         
-                        {photoUrl ? (
-                          <div className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-50 flex-1 flex items-center justify-center group min-h-[190px]">
-                            <img
-                              src={photoUrl}
-                              alt="Dokumentasi Kunjungan"
-                              className="w-full h-full max-h-[220px] object-cover group-hover:scale-105 transition-transform duration-300"
-                            />
-                            <a
-                              href={photoUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="absolute inset-0 bg-slate-900/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1.5"
-                            >
-                              <ExternalLink size={14} /> Buka Foto Ukuran Penuh
-                            </a>
-                          </div>
-                        ) : (
-                          <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/70 flex-1 flex flex-col items-center justify-center p-6 text-center text-slate-400 min-h-[190px]">
-                            <ImageIcon size={32} className="text-slate-300 mb-2" />
-                            <p className="text-xs font-medium text-slate-500">Tidak ada foto dokumentasi</p>
-                            <span className="text-[10px] text-slate-400 mt-0.5">Kunjungan belum menyertakan foto lapangan</span>
-                          </div>
-                        )}
+                        {/* Box Foto Kunjungan */}
+                        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col justify-between min-h-[240px]">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                            <ImageIcon size={13} className="text-emerald-600" /> Foto Dokumentasi Kunjungan
+                          </span>
+                          
+                          {photoUrl ? (
+                            <div className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-50 flex-1 flex items-center justify-center group min-h-[170px]">
+                              <img
+                                src={photoUrl}
+                                alt="Dokumentasi Kunjungan"
+                                className="w-full h-full max-h-[200px] object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                              <a
+                                href={photoUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="absolute inset-0 bg-slate-900/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1.5"
+                              >
+                                <ExternalLink size={14} /> Lihat Foto
+                              </a>
+                            </div>
+                          ) : (
+                            <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/70 flex-1 flex flex-col items-center justify-center p-4 text-center text-slate-400 min-h-[170px]">
+                              <ImageIcon size={28} className="text-slate-300 mb-1.5" />
+                              <p className="text-[11px] font-medium text-slate-500">Tidak Ada Foto Kunjungan</p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Box Foto Rumah */}
+                        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col justify-between min-h-[240px]">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                            <Home size={13} className="text-blue-600" /> Dokumentasi Rumah
+                          </span>
+                          
+                          {photoRumahUrl ? (
+                            <div className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-50 flex-1 flex items-center justify-center group min-h-[170px]">
+                              <img
+                                src={photoRumahUrl}
+                                alt="Dokumentasi Rumah"
+                                className="w-full h-full max-h-[200px] object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                              <a
+                                href={photoRumahUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="absolute inset-0 bg-slate-900/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1.5"
+                              >
+                                <ExternalLink size={14} /> Lihat Foto
+                              </a>
+                            </div>
+                          ) : (
+                            <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/70 flex-1 flex flex-col items-center justify-center p-4 text-center text-slate-400 min-h-[170px]">
+                              <Home size={28} className="text-slate-300 mb-1.5" />
+                              <p className="text-[11px] font-medium text-slate-500">Tidak Ada Foto Rumah</p>
+                            </div>
+                          )}
+                        </div>
+
                       </div>
 
                     </div>
 
-                    {/* Baris 3: Bagian Kiri Bawah Card (Tombol Tambah Catatan & Hapus Berdampingan) */}
+                    {/* Baris 3: Bagian Kiri Bawah Card (Tombol Edit & Hapus Berdampingan) */}
                     <div className="pt-4 border-t border-slate-200/70 flex flex-col sm:flex-row sm:items-center justify-start gap-3">
                       <button
                         type="button"
-                        onClick={() => setShowNewForm(!showNewForm)}
-                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs self-stretch sm:self-auto"
+                        onClick={() => handleStartEdit(item)}
+                        className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs self-stretch sm:self-auto"
                       >
-                        {showNewForm ? <ChevronUp size={15} /> : <Plus size={15} />}
-                        {showNewForm ? 'Tutup Formulir Tambahan' : 'Tambah Catatan / Pembaruan'}
+                        <Edit3 size={14} />
+                        Edit / Update Data
                       </button>
 
                       <button
@@ -1080,7 +1235,7 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
                         title="Hapus Data Tindak Lanjut"
                       >
                         <Trash2 size={14} />
-                        Hapus Tindak Lanjut
+                        Hapus
                       </button>
                     </div>
 
@@ -1096,13 +1251,18 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
             <form onSubmit={handleSubmitTindakLanjut} className={`space-y-6 ${isHandled ? 'pt-6 border-t border-slate-200' : ''}`}>
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-2">
-                  <FileCheck size={15} className="text-blue-700" /> Formulir Input Tindak Lanjut
+                  <FileCheck size={15} className="text-blue-700" />
+                  {editingId ? 'Formulir Edit / Update Tindak Lanjut' : 'Formulir Input Tindak Lanjut'}
                 </h4>
-                {isHandled && (
-                  <span className="text-[11px] font-bold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-md border border-blue-100">
-                    Mode Pembaruan / Catatan Tambahan
+                {editingId ? (
+                  <span className="text-[11px] font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-md border border-amber-200">
+                    Mode Edit (ID #{editingId})
                   </span>
-                )}
+                ) : isHandled ? (
+                  <span className="text-[11px] font-bold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-md border border-blue-100">
+                    Mode Catatan Baru
+                  </span>
+                ) : null}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1240,12 +1400,13 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
                 </div>
 
                 {/* Kolom Kanan: Upload Dokumen & Foto Kunjungan (Max 10MB) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Kolom Kanan: Upload Dokumen, Foto Kunjungan & Foto Rumah */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   
                   {/* Upload Dokumen Pendukung */}
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
-                      Dokumen / Surat Pendukung
+                      Dokumen / Surat
                     </label>
                     {dokumenName ? (
                       <div className="relative rounded-2xl border border-slate-200 bg-slate-50 p-4 h-[210px] flex flex-col justify-between shadow-inner">
@@ -1278,7 +1439,7 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
                           <Upload size={16} />
                         </div>
                         <span className="text-xs font-bold text-slate-700 leading-tight">Unggah Berkas</span>
-                        <span className="text-[10px] text-slate-400 mt-1">PDF, DOC, DOCX, PNG</span>
+                        <span className="text-[10px] text-slate-400 mt-1">PDF, DOC, PNG</span>
                         <span className="text-[9px] text-slate-400">(Maks. 10 MB)</span>
                         <input
                           type="file"
@@ -1294,7 +1455,7 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
                   {/* Upload Foto Dokumentasi Lapangan */}
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
-                      Foto Dokumentasi Kunjungan
+                      Foto Kunjungan
                     </label>
                     {fotoPreview ? (
                       <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 h-[210px] flex items-center justify-center group shadow-inner">
@@ -1319,17 +1480,62 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
                         htmlFor="foto-upload"
                         className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 hover:bg-slate-100/50 hover:border-blue-600/40 transition-all duration-200 h-[210px] flex flex-col items-center justify-center text-center p-3 cursor-pointer group"
                       >
-                        <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-700 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform duration-200 shadow-sm">
+                        <div className="w-9 h-9 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform duration-200 shadow-sm">
                           <Upload size={16} />
                         </div>
-                        <span className="text-xs font-bold text-slate-700 leading-tight">Unggah Foto</span>
-                        <span className="text-[10px] text-slate-400 mt-1">JPG, JPEG, PNG, WEBP</span>
+                        <span className="text-xs font-bold text-slate-700 leading-tight">Foto Kunjungan</span>
+                        <span className="text-[10px] text-slate-400 mt-1">JPG, PNG, WEBP</span>
                         <span className="text-[9px] text-slate-400">(Maks. 10 MB)</span>
                         <input
                           type="file"
                           id="foto-upload"
                           accept="image/*"
                           onChange={handleFotoChange}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                  {/* Upload Foto Dokumentasi Rumah */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+                      Dokumentasi Rumah
+                    </label>
+                    {fotoRumahPreview ? (
+                      <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 h-[210px] flex items-center justify-center group shadow-inner">
+                        <img 
+                          src={fotoRumahPreview} 
+                          alt="Pratinjau Rumah" 
+                          className="w-full h-full object-cover" 
+                        />
+                        <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+                          <button
+                            type="button"
+                            onClick={handleRemoveFotoRumah}
+                            className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-full transition-transform duration-200 hover:scale-110 shadow-lg cursor-pointer"
+                            title="Hapus Foto Rumah"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <label 
+                        htmlFor="foto-rumah-upload"
+                        className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 hover:bg-slate-100/50 hover:border-blue-600/40 transition-all duration-200 h-[210px] flex flex-col items-center justify-center text-center p-3 cursor-pointer group"
+                      >
+                        <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-700 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform duration-200 shadow-sm">
+                          <Home size={16} />
+                        </div>
+                        <span className="text-xs font-bold text-slate-700 leading-tight">Foto Rumah</span>
+                        <span className="text-[10px] text-slate-400 mt-1">JPG, PNG, WEBP</span>
+                        <span className="text-[9px] text-slate-400">(Maks. 10 MB)</span>
+                        <input
+                          type="file"
+                          id="foto-rumah-upload"
+                          accept="image/*"
+                          onChange={handleFotoRumahChange}
                           className="hidden"
                         />
                       </label>
@@ -1360,12 +1566,12 @@ export default function StudentDetail({ id, onBack, onSaveSuccess }) {
                   {submitting ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Menyimpan ke Database Backend...
+                      {editingId ? 'Memperbarui Data...' : 'Menyimpan ke Database Backend...'}
                     </>
                   ) : (
                     <>
                       <Save size={15} />
-                      Simpan Tindak Lanjut
+                      {editingId ? 'Update Tindak Lanjut' : 'Simpan Tindak Lanjut'}
                     </>
                   )}
                 </button>
