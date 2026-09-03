@@ -251,3 +251,34 @@ export const getImportHistoryAPI = async (params = {}) => {
 
 // Aliases for compatibility
 export const updateStudentTindakanLanjutAPI = createTindakLanjutAPI;
+
+/**
+ * 8. Menerbitkan Ringkasan Data ATS ke Portal Mitigasi (Webhook Push)
+ */
+export const pushMitigasiSummaryAPI = async () => {
+  try {
+    const response = await api.post('/v1/mitigasi/push-summary');
+    return response.data;
+  } catch (error) {
+    console.error('[API Mitigasi Push Error]:', error);
+    throw error.response?.data || error;
+  }
+};
+
+/**
+ * 9. Mengambil Ringkasan Agregat ATS untuk Sistem Mitigasi (Pull)
+ */
+export const getMitigasiSummaryAPI = async (fresh = false) => {
+  try {
+    const response = await api.get('/v1/mitigasi/ats-summary', {
+      params: fresh ? { fresh: 1 } : {},
+      headers: {
+        Authorization: 'Bearer secret_bearer_token_ats_2026',
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('[API Mitigasi Pull Error]:', error);
+    throw error.response?.data || error;
+  }
+};

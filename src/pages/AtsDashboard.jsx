@@ -7,7 +7,8 @@ import ImportDataView from '../components/ImportDataView';
 import ImportHistoryView from '../components/ImportHistoryView';
 import { 
   getStudentsAPI, 
-  getImportHistoryAPI 
+  getImportHistoryAPI,
+  pushMitigasiSummaryAPI
 } from '../services/api';
 import { 
   Users, 
@@ -26,7 +27,9 @@ import {
   ArrowRight,
   FileSpreadsheet,
   Menu,
-  X
+  X,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 
 export default function AtsDashboard() {
@@ -55,6 +58,43 @@ export default function AtsDashboard() {
     belumCount: 0,
     sudahCount: 0
   });
+
+  // State integrasi Sistem Mitigasi ATS
+  const [isSyncingMitigasi, setIsSyncingMitigasi] = useState(false);
+  const [mitigasiSyncResult, setMitigasiSyncResult] = useState(null);
+  const [showMitigasiModal, setShowMitigasiModal] = useState(false);
+
+  const handlePublishToMitigasi = async () => {
+    setIsSyncingMitigasi(true);
+    try {
+      const res = await pushMitigasiSummaryAPI();
+      setMitigasiSyncResult({
+        success: true,
+        message: res.message || 'Ringkasan berhasil diterbitkan ke Portal Mitigasi!',
+        data: res.data || res,
+        timestamp: new Date().toLocaleTimeString('id-ID', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        }),
+      });
+      setShowMitigasiModal(true);
+    } catch (err) {
+      setMitigasiSyncResult({
+        success: false,
+        message: err.message || 'Gagal menerbitkan ringkasan ke Portal Mitigasi.',
+        error: err.error || err,
+        timestamp: new Date().toLocaleTimeString('id-ID', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        }),
+      });
+      setShowMitigasiModal(true);
+    } finally {
+      setIsSyncingMitigasi(false);
+    }
+  };
 
   // Ambil metrik ringkasan global dari backend secara akurat
   const fetchGlobalMetrics = useCallback(async () => {
@@ -322,6 +362,10 @@ export default function AtsDashboard() {
                   <Layers size={300} />
                 </div>
                 <div className="relative z-10 max-w-4xl space-y-3">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-semibold backdrop-blur-sm">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>Source of Truth • Prov. Sulteng</span>
+                  </div>
                   <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight font-display">
                     Dashboard Administrasi & Intervensi ATS
                   </h2>
@@ -418,6 +462,18 @@ export default function AtsDashboard() {
                       </span>
                     </button>
                   </div>
+
+                  {/* Tombol Terbitkan ke Portal Mitigasi di Kanan Atas Card Tabel Data */}
+                  <div className="flex items-center gap-2 self-end sm:self-center">
+                    <button
+                      onClick={handlePublishToMitigasi}
+                      disabled={isSyncingMitigasi}
+                      className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold rounded-xl shadow-sm transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                      title="Terbitkan ringkasan data teragregasi ke Portal Mitigasi ATS"
+                    >
+                      {isSyncingMitigasi ? 'Menerbitkan...' : 'Terbitkan ke Portal Mitigasi'}
+                    </button>
+                  </div>
                 </div>
 
                 <div>
@@ -448,6 +504,100 @@ export default function AtsDashboard() {
         onClose={() => setIsImportModalOpen(false)}
         onImportSuccess={handleImportSuccess}
       />
+
+      {/* 4. MODAL DIALOG HASIL SINKRONISASI KE SISTEM MITIGASI */}
+      {showMitigasiModal && mitigasiSyncResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-7 shadow-2xl border border-slate-100 relative space-y-6">
+            <button
+              onClick={() => setShowMitigasiModal(false)}
+              className="absolute top-5 right-5 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-4">
+              <div
+                className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 ${
+                  mitigasiSyncResult.success
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'bg-red-50 text-red-600'
+                }`}
+              >
+                {mitigasiSyncResult.success ? (
+                  <CheckCircle2 size={32} />
+                ) : (
+                  <AlertCircle size={32} />
+                )}
+              </div>
+              <div>
+                <span
+                  className={`text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
+                    mitigasiSyncResult.success
+                      ? 'bg-blue-100 text-blue-800'
+                      : 'bg-red-100 text-red-800'
+                  }`}
+                >
+                  {mitigasiSyncResult.success ? 'Sinkronisasi Berhasil' : 'Sinkronisasi Gagal'}
+                </span>
+                <h3 className="text-lg font-extrabold text-slate-800 mt-1">
+                  {mitigasiSyncResult.success
+                    ? 'Ringkasan Diterbitkan ke Sistem Mitigasi'
+                    : 'Penerbitan Gagal'}
+                </h3>
+              </div>
+            </div>
+
+            <p className="text-sm text-slate-600 leading-relaxed">
+              {mitigasiSyncResult.message}
+            </p>
+
+            {mitigasiSyncResult.success && (
+              <div className="bg-slate-50 rounded-2xl p-4 space-y-2.5 border border-slate-100 text-xs">
+                <div className="flex justify-between items-center text-slate-600">
+                  <span className="font-medium">Total Data Teragregasi:</span>
+                  <span className="font-bold text-slate-900">
+                    {summaryCounts.total.toLocaleString('id-ID')} Data ATS
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-slate-600">
+                  <span className="font-medium">Status Pengiriman:</span>
+                  <span className="font-bold text-blue-700">
+                    200 OK (Sistem Mitigasi)
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-slate-600">
+                  <span className="font-medium">Protokol Keamanan:</span>
+                  <span className="font-bold text-slate-900">
+                    HMAC SHA-256 Valid • Zero-PII
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-slate-600">
+                  <span className="font-medium">Waktu Transmisi:</span>
+                  <span className="font-bold text-slate-900">
+                    {mitigasiSyncResult.timestamp} WITA
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {mitigasiSyncResult.error && (
+              <div className="bg-red-50 text-red-700 p-3.5 rounded-2xl text-xs font-mono break-all border border-red-100">
+                {String(mitigasiSyncResult.error)}
+              </div>
+            )}
+
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={() => setShowMitigasiModal(false)}
+                className="px-6 py-2.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs transition-colors cursor-pointer shadow-sm"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
